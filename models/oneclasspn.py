@@ -1,17 +1,17 @@
 import chainer
-from chainer import functions, cuda
+from chainer import functions
+from chainer import backends
 from chainer import links
 from chainer import reporter
 
-from chainer_pointnet.models.conv_block import ConvBlock
-from chainer_pointnet.models.linear_block import LinearBlock
-from chainer_pointnet.models.pointnet.transform_net import TransformNet
-
+from conv_block import ConvBlock
+from linear_block import LinearBlock
+from transform_net import TransformNet
 
 def calc_trans_loss(t):
     # Loss to enforce the transformation as orthogonal matrix
     # t (batchsize, K, K) - transform matrix
-    xp = cuda.get_array_module(t)
+    xp = backends.cuda.get_array_module(t)
     bs, k1, k2 = t.shape
     assert k1 == k2
     mat_diff = functions.matmul(t, functions.transpose(t, (0, 2, 1)))
@@ -20,35 +20,12 @@ def calc_trans_loss(t):
     # https://www.tensorflow.org/versions/r1.1/api_docs/python/tf/nn/l2_loss
     return functions.sum(functions.batch_l2_norm_squared(mat_diff)) / 2.
 
-
-class PointNetCls(chainer.Chain):
-
-    """Classification PointNet
-
-    Input is (minibatch, K, N, 1), output is (minibatch, out_dim)
-
-        Args:
-            out_dim (int): output dimension, number of class for classification
-            in_dim: input dimension for each point. default is 3, (x, y, z).
-            middle_dim (int): hidden layer
-            dropout_ratio (float): dropout ratio, negative value indicates
-                not to use dropout.
-            use_bn (bool): use batch normalization or not.
-            trans (bool): use TransformNet or not.
-                False means not to use TransformNet, corresponds to
-                PointNetVanilla. True corresponds to PointNet in the paper.
-            trans_lam1 (float): regularization term for input transform.
-                used in training. it is simply ignored when `trans` is False.
-            trans_lam2 (float): regularization term for feature transform
-                used in training. it is simply ignored when `trans` is False.
-            compute_accuracy (bool): compute & report accuracy or not
-            residual (bool): use residual connection or not
-    """
+class OneClassPN(chainer.Chain):
 
     def __init__(self, out_dim, in_dim=3, middle_dim=64, dropout_ratio=0.3,
                  use_bn=True, trans=True, trans_lam1=0.001, trans_lam2=0.001,
                  compute_accuracy=True, residual=False):
-        super(PointNetCls, self).__init__()
+        super(OneClassPN, self).__init__()
         with self.init_scope():
             if trans:
                 self.input_transform_net = TransformNet(
@@ -69,12 +46,16 @@ class PointNetCls(chainer.Chain):
             self.conv_block5 = ConvBlock(
                 128, 1024, ksize=1, use_bn=use_bn, residual=residual)
 
-            # original impl. uses `keep_prob=0.7`.
-            self.fc_block6 = LinearBlock(
-                1024, 512, use_bn=use_bn, dropout_ratio=dropout_ratio,)
-            self.fc_block7 = LinearBlock(
-                512, 256, use_bn=use_bn, dropout_ratio=dropout_ratio,)
-            self.fc8 = links.Linear(256, out_dim)
+            self.conv_block6 = ConvBlock(
+                1024, 512, ksize=1, use_bn=use_bn, residual=residual)
+            self.conv_block7 = ConvBlock(
+                512, 256, ksize=1, use_bn=use_bn, residual=residual)
+            self.conv_block8 = ConvBlock(
+                256, 128, ksize=1, use_bn=use_bn, residual=residual)
+            self.conv_block9 = ConvBlock(
+                128, 128, ksize=1, use_bn=use_bn, residual=residual)
+            self.conv10 = links.Convolution2D(
+                128, in_dim, ksize=1)
 
         self.in_dim = in_dim
         self.trans = trans
@@ -84,6 +65,11 @@ class PointNetCls(chainer.Chain):
 
     def __call__(self, x, t):
         h, t1, t2 = self.calc(x)
+        # h: (bs, ch, N), t: (bs, N)
+        # print('h', h.shape, 't', t.shape)
+        bs, ch, n = h.shape
+        h = functions.reshape(functions.transpose(h, (0, 2, 1)), (bs * n, ch))
+        t = functions.reshape(t, (bs * n,))
         cls_loss = functions.softmax_cross_entropy(h, t)
         reporter.report({'cls_loss': cls_loss}, self)
 
@@ -132,9 +118,16 @@ class PointNetCls(chainer.Chain):
         h = self.conv_block5(h)
 
         # Symmetric function: max pooling
+        bs, k, n, tmp = h.shape
+        assert tmp == 1
         h = functions.max_pooling_2d(h, ksize=h.shape[2:])
         # h: (minibatch, K, 1, 1)
-        h = self.fc_block6(h)
-        h = self.fc_block7(h)
-        h = self.fc8(h)
+        global_feat = functions.broadcast_to(h, (bs, k, n, 1))
+
+        h = self.conv_block6(global_feat)
+        h = self.conv_block7(h)
+        h = self.conv_block8(h)
+        h = self.conv_block9(h)
+        h = self.conv10(h)
+
         return h, t1, t2
