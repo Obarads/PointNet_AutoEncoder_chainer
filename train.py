@@ -9,13 +9,21 @@ from chainer.training import extensions
 
 import numpy as np
 
-#self made
+# self made
 import models.oneclasspn as ocpn
+from models import dataset as ds
 
 
 def main():
 
     # model setting
+
+    seed = 0
+    num_point = 200
+    out_dir = 0 #no use
+    debug = False
+    batch_size = 32
+
     out_dim = 3
     in_dim = 3
     middle_dim = 64
@@ -26,18 +34,23 @@ def main():
     trans_lam2 = 0.001
     compute_accuracy = True
     residual = False
+    print('Train OneClassPN model... trans={} use_bn={} dropout={}'
+        .format(trans, use_bn, dropout_ratio))
     model = ocpn.OneClassPN(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
-                    trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, compute_accuracy=compute_accuracy, residual=residual)
+                            trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, compute_accuracy=compute_accuracy, residual=residual)
 
-    # gpu setting
-    train_iter = iterators.SerialIterator(train, args.batchsize)
+    # Dataset preparation
+    train = ds.get_train_dataset(num_point=num_point)
+    val = ds.get_test_dataset(num_point=num_point)
+
+    train_iter = iterators.SerialIterator(train, batch_size)
     val_iter = iterators.SerialIterator(
-        val, args.batchsize, repeat=False, shuffle=False)
-    device = 1
+        val, batch_size, repeat=False, shuffle=False)
+    device = 0
     optimizer = optimizers.Adam()
     optimizer.setup(model)
     updater = training.StandardUpdater(
-        train_iter, optimizer, device=args.gpu, converter=converter)
+        train_iter, optimizer, device=device, converter=converter)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
 
 
