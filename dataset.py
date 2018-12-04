@@ -3,6 +3,7 @@ import os
 import chainer
 from chainer.datasets.concatenated_dataset import ConcatenatedDataset
 
+import models.provider as provider
 import numpy as np
 
 class InputDataset(chainer.dataset.DatasetMixin):
@@ -12,7 +13,7 @@ class InputDataset(chainer.dataset.DatasetMixin):
         print('loading ', h5_filepath)
         #data, label = provider.loadDataFile(h5_filepath) #provider is selfmade of pointnet
         # Please create label and Datase that build same provider format.
-        data, label = [[[0,0,0]]],0
+        data, label = [[[0,0,0]],[[0,0,0]],[[0,0,0]]], [0,0,1]
         #print(data)
         """structure
         [
@@ -40,6 +41,8 @@ class InputDataset(chainer.dataset.DatasetMixin):
         ]
         """
         assert len(data) == len(label)
+        # data: (2048, 2048, 3) - (batchsize, point, xyz)
+        # Reduce num point here.
         self.data = data[:, :num_point, :].astype(np.float32)
         # (2048,) - (batchsize,)
         self.label = np.squeeze(label).astype(np.int32)

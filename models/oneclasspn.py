@@ -20,6 +20,10 @@ def calc_trans_loss(t):
     # https://www.tensorflow.org/versions/r1.1/api_docs/python/tf/nn/l2_loss
     return functions.sum(functions.batch_l2_norm_squared(mat_diff)) / 2.
 
+def calc_chamfer_distance_loss(t):
+    
+    return 0
+
 class OneClassPN(chainer.Chain):
 
     def __init__(self, out_dim, in_dim=3, middle_dim=64, dropout_ratio=0.3,
