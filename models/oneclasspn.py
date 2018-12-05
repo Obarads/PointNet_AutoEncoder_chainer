@@ -8,6 +8,8 @@ from conv_block import ConvBlock
 from linear_block import LinearBlock
 from transform_net import TransformNet
 
+import distance_loss as dl
+
 def calc_trans_loss(t):
     # Loss to enforce the transformation as orthogonal matrix
     # t (batchsize, K, K) - transform matrix
@@ -20,17 +22,18 @@ def calc_trans_loss(t):
     # https://www.tensorflow.org/versions/r1.1/api_docs/python/tf/nn/l2_loss
     return functions.sum(functions.batch_l2_norm_squared(mat_diff)) / 2.
 
-def calc_chamfer_distance_loss(pred, label, end_points):
+def calc_chamfer_distance_loss(pred, label):
     """ pred: BxNx3,
         label: BxNx3, """
-    
-    return 0
+    dists_forward,_,dists_backward,_ = dl.chamfer_distance(pred,label)
+    loss = functions.mean(dists_forward+dists_backward)
+    return loss*100
 
 class OneClassPN(chainer.Chain):
 
     def __init__(self, out_dim, in_dim=3, middle_dim=64, dropout_ratio=0.3,
                  use_bn=True, trans=True, trans_lam1=0.001, trans_lam2=0.001,
-                 compute_accuracy=True, residual=False):
+                 residual=False):
         super(OneClassPN, self).__init__()
         with self.init_scope():
             if trans:
@@ -67,19 +70,20 @@ class OneClassPN(chainer.Chain):
         self.trans = trans
         self.trans_lam1 = trans_lam1
         self.trans_lam2 = trans_lam2
-        self.compute_accuracy = compute_accuracy
 
-    def __call__(self, x, t):
+    def __call__(self, x):
+        t = x
         h, t1, t2 = self.calc(x)
         # h: (bs, ch, N), t: (bs, N)
         # print('h', h.shape, 't', t.shape)
         bs, ch, n = h.shape
         h = functions.reshape(functions.transpose(h, (0, 2, 1)), (bs * n, ch))
-        t = functions.reshape(t, (bs * n,))
-        cls_loss = functions.softmax_cross_entropy(h, t)
-        reporter.report({'cls_loss': cls_loss}, self)
+        #t = functions.reshape(t, (bs * n,))
+        dist_loss = calc_chamfer_distance_loss(x,t)
+        reporter.report({'dist_loss': dist_loss}, self)
 
-        loss = cls_loss
+        loss = dist_loss
+
         # Enforce the transformation as orthogonal matrix
         if self.trans and self.trans_lam1 >= 0:
             trans_loss1 = self.trans_lam1 * calc_trans_loss(t1)
@@ -91,9 +95,6 @@ class OneClassPN(chainer.Chain):
             loss = loss + trans_loss2
         reporter.report({'loss': loss}, self)
 
-        if self.compute_accuracy:
-            acc = functions.accuracy(h, t)
-            reporter.report({'accuracy': acc}, self)
         return loss
 
     def calc(self, x):

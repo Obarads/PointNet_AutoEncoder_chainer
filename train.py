@@ -28,12 +28,11 @@ def main():
     trans = True
     trans_lam1 = 0.001
     trans_lam2 = 0.001
-    compute_accuracy = True
     residual = False
     print('Train OneClassPN model... trans={} use_bn={} dropout={}'
         .format(trans, use_bn, dropout_ratio))
     model = ocpn.OneClassPN(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
-                            trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, compute_accuracy=compute_accuracy, residual=residual)
+                            trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual)
 
 
     # Dataset preparation
@@ -65,6 +64,7 @@ def main():
     updater = training.StandardUpdater(
         train_iter, optimizer, device=device, converter=converter)
     trainer = training.Trainer(updater, (epoch, 'epoch'), out=out_dir) 
+
 
     from chainerex.training.extensions import schedule_optimizer_value
     from chainer.training.extensions import observe_value
