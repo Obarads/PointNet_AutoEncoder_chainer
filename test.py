@@ -12,17 +12,11 @@ import numpy as np
 # self made
 
 def main():
-    np.random.seed(0)
-
-    data = np.arange(3)
-    data = chainer.Variable(data)
-    ite  = chainer.iterators.SerialIterator(data, batch_size=2, 
-                                            repeat=True, shuffle=True)
-
-    print(data)
-
-    for i in range(5):
-        print(ite.next())
+    x = np.array([[-1, 0, 1, 2], [2, 0, 1, -1]]).astype('f') 
+    t = np.array([3, 0]).astype('i') 
+    y = functions.softmax_cross_entropy(x, t)
+    print(y)
+    h = functions.matmul(t, x[:, :, :, 0])
 
 if __name__ == '__main__':
     main()

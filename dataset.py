@@ -13,7 +13,7 @@ class InputDataset(chainer.dataset.DatasetMixin):
         print('loading ', h5_filepath)
         #data, label = provider.loadDataFile(h5_filepath) #provider is selfmade of pointnet
         # Please create label and Datase that build same provider format.
-        data, label = [[[0,0,0]],[[0,0,0]],[[0,0,0]]], [0,0,1]
+        data, label = provider.loadDataFile(h5_filepath)
         #print(data)
         """structure
         [

@@ -20,7 +20,9 @@ def calc_trans_loss(t):
     # https://www.tensorflow.org/versions/r1.1/api_docs/python/tf/nn/l2_loss
     return functions.sum(functions.batch_l2_norm_squared(mat_diff)) / 2.
 
-def calc_chamfer_distance_loss(t):
+def calc_chamfer_distance_loss(pred, label, end_points):
+    """ pred: BxNx3,
+        label: BxNx3, """
     
     return 0
 

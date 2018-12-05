@@ -64,7 +64,7 @@ def main():
     out_dir = 'result'
     updater = training.StandardUpdater(
         train_iter, optimizer, device=device, converter=converter)
-    trainer = training.Trainer(updater, (epoch, 'epoch'), out=out_dir)
+    trainer = training.Trainer(updater, (epoch, 'epoch'), out=out_dir) 
 
     from chainerex.training.extensions import schedule_optimizer_value
     from chainer.training.extensions import observe_value
