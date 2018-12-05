@@ -4,11 +4,11 @@ from chainer import backends
 from chainer import links
 from chainer import reporter
 
-from conv_block import ConvBlock
-from linear_block import LinearBlock
-from transform_net import TransformNet
+from .conv_block import ConvBlock
+from .linear_block import LinearBlock
+from .transform_net import TransformNet
 
-import distance_loss as dl
+import models.distance_loss as dl
 
 def calc_trans_loss(t):
     # Loss to enforce the transformation as orthogonal matrix
@@ -29,12 +29,12 @@ def calc_chamfer_distance_loss(pred, label):
     loss = functions.mean(dists_forward+dists_backward)
     return loss*100
 
-class OneClassPN(chainer.Chain):
+class PointNetAE(chainer.Chain):
 
     def __init__(self, out_dim, in_dim=3, middle_dim=64, dropout_ratio=0.3,
                  use_bn=True, trans=True, trans_lam1=0.001, trans_lam2=0.001,
                  residual=False):
-        super(OneClassPN, self).__init__()
+        super(PointNetAE, self).__init__()
         with self.init_scope():
             if trans:
                 self.input_transform_net = TransformNet(

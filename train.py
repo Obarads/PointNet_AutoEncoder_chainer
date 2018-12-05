@@ -13,9 +13,10 @@ import numpy as np
 import os
 
 # self made
-import models.oneclasspn as ocpn
-import dataset as ds
+import models.pointnet_ae as ae
+import part_dataset as pd
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def main():
 
@@ -29,18 +30,20 @@ def main():
     trans_lam1 = 0.001
     trans_lam2 = 0.001
     residual = False
-    print('Train OneClassPN model... trans={} use_bn={} dropout={}'
+    print('Train PointNet-AutoEncoder model... trans={} use_bn={} dropout={}'
         .format(trans, use_bn, dropout_ratio))
-    model = ocpn.OneClassPN(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
+    model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
                             trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual)
 
 
     # Dataset preparation
     seed = 888
-    num_point = 200
+    num_point = 2500
     batch_size = 32
-    train = ds.get_train_dataset(num_point=num_point)
-    val = ds.get_test_dataset(num_point=num_point)
+    #train = ds.get_train_dataset(num_point=num_point)
+    #val = ds.get_test_dataset(num_point=num_point)
+    train =pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, class_choice = ['Guitar'], split='train')
+    val = pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, class_choice = ['Guitar'], split='val')
     train_iter = iterators.SerialIterator(train, batch_size)
     val_iter = iterators.SerialIterator(
         val, batch_size, repeat=False, shuffle=False)
