@@ -4,10 +4,11 @@ from chainer import functions
 from chainer import optimizers
 from chainer import training
 from chainer import iterators
-from chainer.dataset import to_device, concat_examples
+from chainer.dataset import to_device
 from chainer.datasets import TransformDataset
 from chainer.training import extensions as E
-from chainer.dataset.convert import concat_examples as converter
+from chainer.dataset.convert import concat_examples
+from chainer.datasets.concatenated_dataset import ConcatenatedDataset
 
 import numpy as np
 import os
@@ -15,6 +16,9 @@ import os
 # self made
 import models.pointnet_ae as ae
 import part_dataset as pd
+
+from ply_dataset import get_train_dataset, get_test_dataset
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,19 +40,20 @@ def main():
                             trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual)
 
 
+    print("Dataset setting...")
     # Dataset preparation
     seed = 888
-    num_point = 2500
-    batch_size = 32
+    num_point = 1024
+    batch_size = 12
     #train = ds.get_train_dataset(num_point=num_point)
     #val = ds.get_test_dataset(num_point=num_point)
-    train =pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, class_choice = ['Guitar'], split='train')
-    val = pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, class_choice = ['Guitar'], split='val')
+    #train = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='train'))))
+    train = get_train_dataset(num_point=num_point)
+#    val = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='val'))))
     train_iter = iterators.SerialIterator(train, batch_size)
-    val_iter = iterators.SerialIterator(
-        val, batch_size, repeat=False, shuffle=False)
+    #val_iter = iterators.SerialIterator(val, batch_size, repeat=False, shuffle=False)
 
-
+    print("GPU setting...")
     # gpu setting
     device = 0
     print('using gpu {}'.format(device))
@@ -64,6 +69,7 @@ def main():
     # traning
     epoch = 250
     out_dir = 'result'
+    converter = concat_examples
     updater = training.StandardUpdater(
         train_iter, optimizer, device=device, converter=converter)
     trainer = training.Trainer(updater, (epoch, 'epoch'), out=out_dir) 
@@ -80,8 +86,7 @@ def main():
         [10, 20, 100, 150, 200, 230],
         [0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]))
 
-    trainer.extend(E.Evaluator(
-        val_iter, model, converter=converter, device=device))
+    #trainer.extend(E.Evaluator(val_iter, model, converter=converter, device=device))
     trainer.extend(E.snapshot(), trigger=(epoch, 'epoch'))
     trainer.extend(E.LogReport())
     trainer.extend(E.PrintReport(
@@ -95,6 +100,7 @@ def main():
     resume = ''
     if resume:
         serializers.load_npz(resume, trainer)
+    print("Traning start.")
     trainer.run()
 
     # --- save classifier ---

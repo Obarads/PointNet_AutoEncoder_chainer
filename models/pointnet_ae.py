@@ -54,7 +54,6 @@ class PointNetAE(chainer.Chain):
                 64, 128, ksize=1, use_bn=use_bn, residual=residual)
             self.conv_block5 = ConvBlock(
                 128, 1024, ksize=1, use_bn=use_bn, residual=residual)
-
             self.conv_block6 = ConvBlock(
                 1024, 512, ksize=1, use_bn=use_bn, residual=residual)
             self.conv_block7 = ConvBlock(
@@ -71,7 +70,8 @@ class PointNetAE(chainer.Chain):
         self.trans_lam1 = trans_lam1
         self.trans_lam2 = trans_lam2
 
-    def __call__(self, x):
+    def __call__(self, x, y):
+        print("CCC")
         t = x
         h, t1, t2 = self.calc(x)
         # h: (bs, ch, N), t: (bs, N)
@@ -98,6 +98,7 @@ class PointNetAE(chainer.Chain):
         return loss
 
     def calc(self, x):
+        #print("x:{}".format(x))
         # x: (minibatch, K, N, 1)
         # N - num_point
         # K - feature degree (this is 3 for xyz input, 64 for middle layer)
@@ -125,6 +126,7 @@ class PointNetAE(chainer.Chain):
         h = self.conv_block5(h)
 
         # Symmetric function: max pooling
+        print(h.shape)
         bs, k, n, tmp = h.shape
         assert tmp == 1
         h = functions.max_pooling_2d(h, ksize=h.shape[2:])
