@@ -91,7 +91,7 @@ class PartDataset():
         self.classes = dict(zip(self.cat, range(len(self.cat))))
         self.num_seg_classes = 0
         if not self.classification:
-            # print(len(self.datapath)/50)
+            #print(len(self.datapath)/50)
             for i in range(int(len(self.datapath)/50)):
                 l = len(np.unique(np.loadtxt(
                     self.datapath[i][-1]).astype(np.uint8)))
@@ -129,17 +129,20 @@ class PartDataset():
 
 
 class ChainerAEDataset(chainer.dataset.DatasetMixin):
-    def __init__(self, d=PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), class_choice=['Guitar'], classification=True)):
+    def __init__(self, d=PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), class_choice=['Guitar'], classification=True),batchsize=32):
         self.lenght = len(d)
-        #print(self.lenght)
         self.d = d
-        #self.data = d[:,:len(d[0][0]),:].astype(np.float32)
+        self.batchsize = batchsize
 
     def __len__(self):
-        return self.lenght
+        ite = int(self.lenght/self.batchsize)
+        print(ite)
+        print(ite*self.batchsize)
+        return ite*self.batchsize
 
     def get_example(self, i):
         x, t = self.d[i]
+        #print(self.d[i])
         x = np.transpose(x.astype(np.float32), (1, 0))[:, :, None]
         t = t[0]
         #print(x, len(x[0]))
@@ -175,15 +178,16 @@ if __name__ == '__main__':
 
     #d = PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), class_choice = ['Guitar','Car'], classification = True)
     d = PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'),
-                    class_choice=['Guitar'], classification=True)
+                    class_choice=['Chair','Car'], classification=True, npoints=1024)
     # Classes are not same amount of dataset.
-    d0 = ChainerAEDataset()
-    data_point, label = d0[3]
-    print('data_point', data_point, 'label', label)
+    d0 = ChainerAEDataset(d)
+    data_point, label = d0.get_example(0)
+    #print('data_point', data_point, 'label', label)
+    print('data_point', data_point.shape, 'label', label)
 
-    pd, cls = d[1]
+    #pd, cls = d[1]
     # print("ps:{}".format(ps))
-    print("cls:{}".format(cls))
-    import utils.show3d_balls as show3d_balls
+    #print("cls:{}".format(cls))
+    #import utils.show3d_balls as show3d_balls
     #show3d_balls.showpoints(ps1, ballradius=8)
-    print(pd.shape, type(pd), cls.shape, type(cls))
+    #print(pd.shape, type(pd), cls.shape, type(cls))

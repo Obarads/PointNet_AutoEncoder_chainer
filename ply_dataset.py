@@ -26,7 +26,7 @@ class PlyDataset(chainer.dataset.DatasetMixin):
         self.augment = augment
         self.num_point = num_point
         self.length = len(data)
-        print('length ', self.length)
+        #print('length ', self.length)
 
     def __len__(self):
         """return length of this dataset"""
@@ -44,8 +44,6 @@ class PlyDataset(chainer.dataset.DatasetMixin):
         # pint_data (2048, 3): (num_point, k) --> convert to (k, num_point, 1)
         point_data = np.transpose(
             point_data.astype(np.float32), (1, 0))[:, :, None]
-        #print(point_data, len(point_data[0]))
-        #print(self.label[i])
         assert point_data.dtype == np.float32
         assert self.label[i].dtype == np.int32
         return point_data, self.label[i]
@@ -75,19 +73,20 @@ if __name__ == '__main__':
     train_files = provider.getDataFiles(
         os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/train_files.txt'))
     d0 = PlyDataset(train_files[0], augment=True)
-    data_point, label = d0[3]
+    data_point, label = d0.get_example(0)
+    #print('data_point', data_point, 'label', label)
     print('data_point', data_point.shape, 'label', label)
 
     # --- Total dataset check ---
-    train = get_train_dataset()
-    test = get_test_dataset()
+    #train = get_train_dataset()
+    #test = get_test_dataset()
     # import IPython; IPython.embed()
-    print('train', len(train), 'test', len(test))
+    #print('train', len(train), 'test', len(test))
 
-    convert_to_kdtree = True
+    convert_to_kdtree = False
     if convert_to_kdtree:
         from chainer.datasets import TransformDataset
         from chainer_pointnet.utils.kdtree import TransformKDTreeCls
         train = TransformDataset(train, TransformKDTreeCls())
         points, split_dims, t = train[1]
-        print(points.shape, split_dims.shape, t)
+        #print(points.shape, split_dims.shape, t)

@@ -71,14 +71,12 @@ class PointNetAE(chainer.Chain):
         self.trans_lam2 = trans_lam2
 
     def __call__(self, x, y):
-        print("CCC")
+        #print(x.shape)
+        #print(x[0][0][0][0])
         t = x
         h, t1, t2 = self.calc(x)
         # h: (bs, ch, N), t: (bs, N)
         # print('h', h.shape, 't', t.shape)
-        bs, ch, n = h.shape
-        h = functions.reshape(functions.transpose(h, (0, 2, 1)), (bs * n, ch))
-        #t = functions.reshape(t, (bs * n,))
         dist_loss = calc_chamfer_distance_loss(x,t)
         reporter.report({'dist_loss': dist_loss}, self)
 
@@ -126,7 +124,6 @@ class PointNetAE(chainer.Chain):
         h = self.conv_block5(h)
 
         # Symmetric function: max pooling
-        print(h.shape)
         bs, k, n, tmp = h.shape
         assert tmp == 1
         h = functions.max_pooling_2d(h, ksize=h.shape[2:])

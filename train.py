@@ -44,14 +44,12 @@ def main():
     # Dataset preparation
     seed = 888
     num_point = 1024
-    batch_size = 12
-    #train = ds.get_train_dataset(num_point=num_point)
-    #val = ds.get_test_dataset(num_point=num_point)
+    batch_size = 32
     #train = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='train'))))
     train = get_train_dataset(num_point=num_point)
-#    val = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='val'))))
+    val = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='val'))))
     train_iter = iterators.SerialIterator(train, batch_size)
-    #val_iter = iterators.SerialIterator(val, batch_size, repeat=False, shuffle=False)
+    val_iter = iterators.SerialIterator(val, batch_size, repeat=False, shuffle=False)
 
     print("GPU setting...")
     # gpu setting
@@ -67,7 +65,7 @@ def main():
 
 
     # traning
-    epoch = 250
+    epoch = 201
     out_dir = 'result'
     converter = concat_examples
     updater = training.StandardUpdater(
@@ -86,7 +84,7 @@ def main():
         [10, 20, 100, 150, 200, 230],
         [0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]))
 
-    #trainer.extend(E.Evaluator(val_iter, model, converter=converter, device=device))
+    trainer.extend(E.Evaluator(val_iter, model, converter=converter, device=device))
     trainer.extend(E.snapshot(), trigger=(epoch, 'epoch'))
     trainer.extend(E.LogReport())
     trainer.extend(E.PrintReport(
