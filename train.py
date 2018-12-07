@@ -12,29 +12,73 @@ from chainer.datasets.concatenated_dataset import ConcatenatedDataset
 
 import numpy as np
 import os
+import argparse
+from distutils.util import strtobool
 
 # self made
 import models.pointnet_ae as ae
 import part_dataset as pd
 
-from ply_dataset import get_train_dataset, get_test_dataset
-
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description='AutoEncoder ShapeNet')
+    # parser.add_argument('--conv-layers', '-c', type=int, default=4)
+    parser.add_argument('--batchsize', '-b', type=int, default=32)
+    parser.add_argument('--dropout_ratio', type=float, default=0)
+    parser.add_argument('--num_point', type=int, default=1024)
+    parser.add_argument('--gpu', '-g', type=int, default=-1)
+    parser.add_argument('--out', '-o', type=str, default='result')
+    parser.add_argument('--epoch', '-e', type=int, default=250)
+    # parser.add_argument('--unit-num', '-u', type=int, default=16)
+    parser.add_argument('--seed', '-s', type=int, default=777)
+    parser.add_argument('--protocol', type=int, default=2)
+    parser.add_argument('--model_filename', type=str, default='model.npz')
+    parser.add_argument('--resume', type=str, default='')
+    parser.add_argument('--trans', type=strtobool, default='true')
+    parser.add_argument('--use_bn', type=strtobool, default='true')
+    parser.add_argument('--normalize', type=strtobool, default='false')
+    parser.add_argument('--residual', type=strtobool, default='false')
+    parser.add_argument('--out_dim', type=int, default=3)
+    parser.add_argument('--in_dim', type=int, default=3)
+    parser.add_argument('--middle_dim', type=int, default=64)
+    parser.add_argument('--use_val', type=strtobool, default='false')
+    args = parser.parse_args()
 
-    # Network
-    out_dim = 3
-    in_dim = 3
-    middle_dim = 64
-    dropout_ratio = 0
-    use_bn = True
-    trans = True
+    batch_size = args.batchsize
+    dropout_ratio = args.dropout_ratio
+    num_point = args.num_point
+    device = args.gpu
+    out_dir = args.out
+    epoch = args.epoch
+    seed = args.seed
+    protocol = args.protocol
+    model_filename = args.model_filename
+    resume = args.resume
+    trans = args.trans
+    use_bn = args.use_bn
+    normalize = args.normalize
+    residual = args.residual
+    out_dim = args.out_dim
+    in_dim = args.in_dim
+    middle_dim = args.middle_dim
+    use_val = args.use_val
+
     trans_lam1 = 0.001
     trans_lam2 = 0.001
-    residual = False
+
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+        import chainerex.utils as cl
+        fp = os.path.join(out_dir, 'args.json')
+        cl.save_json(fp, vars(args))
+        print('save args to', fp)
+    except ImportError:
+        pass
+
+    # Network
     print('Train PointNet-AutoEncoder model... trans={} use_bn={} dropout={}'
           .format(trans, use_bn, dropout_ratio))
     model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
@@ -42,14 +86,9 @@ def main():
 
     print("Dataset setting...")
     # Dataset preparation
-    seed = 888
-    num_point = 1024
-    batch_size = 32
     train = ConcatenatedDataset(*([pd.ChainerDataset(root=os.path.join(
         BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="train", class_choice=["Car"])]))
-    #train = get_train_dataset(num_point=num_point)
     train_iter = iterators.SerialIterator(train, batch_size)
-    use_val = False
     if use_val:
         val = ConcatenatedDataset(*(pd.ChainerDataset(root=os.path.join(
             BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="val", class_choice=["Car"])))
@@ -58,18 +97,16 @@ def main():
 
     print("GPU setting...")
     # gpu setting
-    device = 0
-    print('using gpu {}'.format(device))
-    chainer.backends.cuda.get_device_from_id(device).use()
-    model.to_gpu()
+    if(device >= 0):
+        print('using gpu {}'.format(device))
+        chainer.backends.cuda.get_device_from_id(device).use()
+        model.to_gpu()
 
     # Optimizer
     optimizer = optimizers.Adam()
     optimizer.setup(model)
 
     # traning
-    epoch = 200
-    out_dir = 'result'
     converter = concat_examples
     updater = training.StandardUpdater(
         train_iter, optimizer, device=device, converter=converter)
@@ -113,7 +150,6 @@ def main():
     # protocol = args.protocol
     # classifier.save_pickle(
     #     os.path.join(out_dir, args.model_filename), protocol=protocol)
-    model_filename = 'model.npz'
     serializers.save_npz(
         os.path.join(out_dir, model_filename), model)
 
