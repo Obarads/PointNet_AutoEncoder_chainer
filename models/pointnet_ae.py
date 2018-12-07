@@ -33,9 +33,10 @@ class PointNetAE(chainer.Chain):
 
     def __init__(self, out_dim, in_dim=3, middle_dim=64, dropout_ratio=0.3,
                  use_bn=True, trans=True, trans_lam1=0.001, trans_lam2=0.001,
-                 residual=False):
+                 residual=False, output_points=1024):
         super(PointNetAE, self).__init__()
         with self.init_scope():
+            #Encoder
             if trans:
                 self.input_transform_net = TransformNet(
                     k=in_dim, use_bn=use_bn, residual=residual)
@@ -54,21 +55,17 @@ class PointNetAE(chainer.Chain):
                 64, 128, ksize=1, use_bn=use_bn, residual=residual)
             self.conv_block5 = ConvBlock(
                 128, 1024, ksize=1, use_bn=use_bn, residual=residual)
-            self.conv_block6 = ConvBlock(
-                1024, 512, ksize=1, use_bn=use_bn, residual=residual)
-            self.conv_block7 = ConvBlock(
-                512, 256, ksize=1, use_bn=use_bn, residual=residual)
-            self.conv_block8 = ConvBlock(
-                256, 128, ksize=1, use_bn=use_bn, residual=residual)
-            self.conv_block9 = ConvBlock(
-                128, 128, ksize=1, use_bn=use_bn, residual=residual)
-            self.conv10 = links.Convolution2D(
-                128, in_dim, ksize=1)
+
+            #FC Decoder
+            self.fc_block6 = LinearBlock(1024, 1024, use_bn=use_bn, dropout_ratio=dropout_ratio)
+            self.fc_block7 = LinearBlock(1024, 1024, use_bn=use_bn, dropout_ratio=dropout_ratio)
+            self.fc8 = links.Linear(1024, output_points*3)
 
         self.in_dim = in_dim
         self.trans = trans
         self.trans_lam1 = trans_lam1
         self.trans_lam2 = trans_lam2
+        self.output_points = output_points
 
     def __call__(self, x, y):
         #print(x.shape)
@@ -77,7 +74,7 @@ class PointNetAE(chainer.Chain):
         h, t1, t2 = self.calc(x)
         # h: (bs, ch, N), t: (bs, N)
         # print('h', h.shape, 't', t.shape)
-        dist_loss = calc_chamfer_distance_loss(x,t)
+        dist_loss = calc_chamfer_distance_loss(h,t)
         reporter.report({'dist_loss': dist_loss}, self)
 
         loss = dist_loss
@@ -128,12 +125,10 @@ class PointNetAE(chainer.Chain):
         assert tmp == 1
         h = functions.max_pooling_2d(h, ksize=h.shape[2:])
         # h: (minibatch, K, 1, 1)
-        global_feat = functions.broadcast_to(h, (bs, k, n, 1))
 
-        h = self.conv_block6(global_feat)
-        h = self.conv_block7(h)
-        h = self.conv_block8(h)
-        h = self.conv_block9(h)
-        h = self.conv10(h)
+        h = self.fc_block6(h)
+        h = self.fc_block7(h)
+        h = self.fc8(h)
 
+        h = functions.reshape(h, (x.shape[0],self.in_dim,self.output_points,1))
         return h, t1, t2

@@ -22,6 +22,7 @@ from ply_dataset import get_train_dataset, get_test_dataset
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
 def main():
 
     # Network
@@ -35,21 +36,25 @@ def main():
     trans_lam2 = 0.001
     residual = False
     print('Train PointNet-AutoEncoder model... trans={} use_bn={} dropout={}'
-        .format(trans, use_bn, dropout_ratio))
+          .format(trans, use_bn, dropout_ratio))
     model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
-                            trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual)
-
+                          trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual)
 
     print("Dataset setting...")
     # Dataset preparation
     seed = 888
     num_point = 1024
     batch_size = 32
-    #train = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='train'))))
-    train = get_train_dataset(num_point=num_point)
-    val = ConcatenatedDataset(*(pd.ChainerAEDataset(pd.PartDataset(root = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), npoints=num_point, classification=True, class_choice = ['Guitar'], split='val'))))
+    train = ConcatenatedDataset(*([pd.ChainerDataset(root=os.path.join(
+        BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="train", class_choice=["Car"])]))
+    #train = get_train_dataset(num_point=num_point)
     train_iter = iterators.SerialIterator(train, batch_size)
-    val_iter = iterators.SerialIterator(val, batch_size, repeat=False, shuffle=False)
+    use_val = False
+    if use_val:
+        val = ConcatenatedDataset(*(pd.ChainerDataset(root=os.path.join(
+            BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="val", class_choice=["Car"])))
+        val_iter = iterators.SerialIterator(
+            val, batch_size, repeat=False, shuffle=False)
 
     print("GPU setting...")
     # gpu setting
@@ -58,20 +63,17 @@ def main():
     chainer.backends.cuda.get_device_from_id(device).use()
     model.to_gpu()
 
-
     # Optimizer
     optimizer = optimizers.Adam()
     optimizer.setup(model)
 
-
     # traning
-    epoch = 201
+    epoch = 200
     out_dir = 'result'
     converter = concat_examples
     updater = training.StandardUpdater(
         train_iter, optimizer, device=device, converter=converter)
-    trainer = training.Trainer(updater, (epoch, 'epoch'), out=out_dir) 
-
+    trainer = training.Trainer(updater, (epoch, 'epoch'), out=out_dir)
 
     from chainerex.training.extensions import schedule_optimizer_value
     from chainer.training.extensions import observe_value
@@ -84,15 +86,21 @@ def main():
         [10, 20, 100, 150, 200, 230],
         [0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]))
 
-    trainer.extend(E.Evaluator(val_iter, model, converter=converter, device=device))
+    if use_val:
+        trainer.extend(E.Evaluator(val_iter, model,
+                                   converter=converter, device=device))
+        trainer.extend(E.PrintReport(
+            ['epoch', 'main/loss', 'main/cls_loss', 'main/trans_loss1',
+             'main/trans_loss2', 'main/accuracy', 'validation/main/loss',
+             'validation/main/cls_loss',
+             'validation/main/trans_loss1', 'validation/main/trans_loss2',
+             'validation/main/accuracy', 'lr', 'elapsed_time']))
+    else:
+        trainer.extend(E.PrintReport(
+            ['epoch', 'main/loss', 'main/cls_loss', 'main/trans_loss1',
+             'main/trans_loss2', 'main/accuracy', 'lr', 'elapsed_time']))
     trainer.extend(E.snapshot(), trigger=(epoch, 'epoch'))
     trainer.extend(E.LogReport())
-    trainer.extend(E.PrintReport(
-        ['epoch', 'main/loss', 'main/cls_loss', 'main/trans_loss1',
-         'main/trans_loss2', 'main/accuracy', 'validation/main/loss',
-         # 'validation/main/cls_loss',
-         # 'validation/main/trans_loss1', 'validation/main/trans_loss2',
-         'validation/main/accuracy', 'lr', 'elapsed_time']))
     trainer.extend(E.ProgressBar(update_interval=10))
 
     resume = ''

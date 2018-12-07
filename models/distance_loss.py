@@ -27,14 +27,15 @@ def chamfer_distance(pc1, pc2):
     N = pc1.shape[2]
     M = pc2.shape[2]
 
+    """
     dist = Variable(np.zeros((N,M)))
     for i in range(N):
         for j in range(M):
             dist[i,j] = functions.sum((pc1[0,:,i,0] - pc2[0,:,j,0]) ** 2)
     dist1 = functions.min(dist,axis=1)
     dist2 = functions.min(dist,axis=1)
-
     """
+    
     #行列のn列目に1次元挿入
     #各次元を指定配列分だけ繰り返す、上の場合、２次元の部分をM回繰り返している。
     pc1_expand_tile = functions.tile(functions.expand_dims(pc1,3),(1,1,1,M,1))
@@ -53,7 +54,6 @@ def chamfer_distance(pc1, pc2):
     #idx1 = functions.argmin(pc_dist, axis=1)
     dist2 = functions.min(pc_dist,axis=2)
     #idx2 = functions.argmin(pc_dist, axis=2)
-    """
 
     return dist1, idx1, dist2, idx2
 
