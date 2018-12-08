@@ -129,15 +129,14 @@ def main():
         trainer.extend(E.Evaluator(val_iter, model,
                                    converter=converter, device=device))
         trainer.extend(E.PrintReport(
-            ['epoch', 'main/loss', 'main/cls_loss', 'main/trans_loss1',
-             'main/trans_loss2', 'main/accuracy', 'validation/main/loss',
-             'validation/main/cls_loss',
+            ['epoch', 'main/loss','main/dist_loss', 'main/trans_loss1',
+             'main/trans_loss2', 'validation/main/loss','validation/main/dist_loss',
              'validation/main/trans_loss1', 'validation/main/trans_loss2',
-             'validation/main/accuracy', 'lr', 'elapsed_time']))
+             'lr', 'elapsed_time']))
     else:
         trainer.extend(E.PrintReport(
-            ['epoch', 'main/loss', 'main/cls_loss', 'main/trans_loss1',
-             'main/trans_loss2', 'main/accuracy', 'lr', 'elapsed_time']))
+            ['epoch', 'main/loss', 'main/dist_loss', 'main/trans_loss1',
+             'main/trans_loss2', 'lr', 'elapsed_time']))
     trainer.extend(E.snapshot(), trigger=(epoch, 'epoch'))
     trainer.extend(E.LogReport())
     trainer.extend(E.ProgressBar(update_interval=10))
