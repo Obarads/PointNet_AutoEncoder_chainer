@@ -44,7 +44,8 @@ def main():
     parser.add_argument('--out_dim', type=int, default=3)
     parser.add_argument('--in_dim', type=int, default=3)
     parser.add_argument('--middle_dim', type=int, default=64)
-    parser.add_argument('--use_val', type=strtobool, default='false')
+    parser.add_argument('--use_val', type=strtobool, default='true')
+    parser.add_argument('--class_choice', type=str, default='Chair')
     args = parser.parse_args()
 
     batch_size = args.batchsize
@@ -65,6 +66,7 @@ def main():
     in_dim = args.in_dim
     middle_dim = args.middle_dim
     use_val = args.use_val
+    class_choice = args.class_choice
 
     trans_lam1 = 0.001
     trans_lam2 = 0.001
@@ -87,11 +89,11 @@ def main():
     print("Dataset setting...")
     # Dataset preparation
     train = ConcatenatedDataset(*([pd.ChainerDataset(root=os.path.join(
-        BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="train", class_choice=["Car"])]))
+        BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="train", class_choice=[class_choice])]))
     train_iter = iterators.SerialIterator(train, batch_size)
     if use_val:
-        val = ConcatenatedDataset(*(pd.ChainerDataset(root=os.path.join(
-            BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="val", class_choice=["Car"])))
+        val = ConcatenatedDataset(*([pd.ChainerDataset(root=os.path.join(
+            BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="val", class_choice=[class_choice])]))
         val_iter = iterators.SerialIterator(
             val, batch_size, repeat=False, shuffle=False)
 

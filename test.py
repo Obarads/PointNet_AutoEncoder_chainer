@@ -12,20 +12,7 @@ import numpy as np
 # self made
 
 def main():
-    data = [
-        [
-            [0,0,0],
-            [1,1,1],
-            [2,2,2]
-        ],[
-            [0,0,0],
-            [1,1,1],
-            [2,2,2]
-        ]
-    ]
-    l = len(data[0][0])
-    print(l)
-    print(data[:, :l, :].astype(np.float32))
+    return 0
 
 if __name__ == '__main__':
     main()

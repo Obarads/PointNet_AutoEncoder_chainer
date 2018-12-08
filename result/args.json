@@ -16,5 +16,6 @@
     "out_dim": 3,
     "in_dim": 3,
     "middle_dim": 64,
-    "use_val": 0
+    "use_val": 1,
+    "class_choice": "Chair"
 }
