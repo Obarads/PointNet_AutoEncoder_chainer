@@ -132,3 +132,7 @@ class PointNetAE(chainer.Chain):
 
         h = functions.reshape(h, (x.shape[0],self.in_dim,self.output_points,1))
         return h, t1, t2
+
+    def test_calc(self, x):
+        h, _, _ = self.calc(x)
+        return h

@@ -17,10 +17,9 @@ from distutils.util import strtobool
 
 # self made
 import models.pointnet_ae as ae
-import part_dataset as pd
+import chainer_dataset as pd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 
 def main():
     parser = argparse.ArgumentParser(
