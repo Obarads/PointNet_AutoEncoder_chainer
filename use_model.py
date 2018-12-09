@@ -54,17 +54,20 @@ def main():
     serializers.load_npz(load_file, model)
 
     d = pd.ChainerDataset(root=os.path.join(
-        BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="test", class_choice=[class_choice])
+        BASE_DIR, 'data/shapenetcore_h5/chair_train.h5'), use_h5=True, class_choice=[class_choice])
     x,_ = d.get_example(0)
     x = chainer.Variable(np.array([x]))
-    print(x.shape)
-    h = model.test_calc(x)
-
-    #note: update "for" to transpose
-    point_data = np.transpose(h[0].astype(np.float32), (1, 0))[:, :, None]
+    with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
+        y = model.test_calc(x)
+    y = y.array[0]
+    point_data = []
+    for n in range(len(y[0])):
+        point_data.append([y[0][n][0],y[1][n][0],y[2][n][0]])
+    point_data = np.array(point_data)
+    print(point_data)
 
     import utils.show3d_balls as show3d_balls
-    show3d_balls.showpoints(point_data[0], ballradius=8)
-
+    show3d_balls.showpoints(point_data, ballradius=8)
+    show3d_balls.showpoints(d.get_data(0), ballradius=8)
 if __name__ == '__main__':
     main()

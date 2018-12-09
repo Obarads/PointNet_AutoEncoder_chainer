@@ -4,19 +4,31 @@ AutoEncoder using PointNet and chainer. PointNet-AutoEnocoder(TensorFlow) which 
 
 ## Installation
 Please install Chainer (and cupy if you want to use GPU) beforehand.  
-Operation check is as follows:
-- chainer 5.0.0
-- cupy-cuda92 5.0.0  
-
+Furthermore, Operation check is described on comments.
+```
+# chainer version 5.0.0
+pip install chainer
+# cupy-cuda92 version 5.0.0
+pip install cupy-cuda92
+```
 Also, some extension library is used in some of the code,
 ```
-# Chainer Chemistry
+# Chainer Chemistry version 0.4.0
 git clone https://github.com/pfnet-research/chainer-chemistry.git
 pip install -e chainer-chemistry
-# ChainerEX
+# ChainerEX version 0.0.1
 git clone https://github.com/corochann/chainerex.git
 pip install -e chainerex
 ```
+
+## Download Data
+ShapeNetPart dataset is available [HERE](https://shapenet.cs.stanford.edu/media/shapenetcore_partanno_segmentation_benchmark_v0.zip). Simply download the zip file and move the `shapenetcore_partanno_segmentation_benchmark_v0` folder to `data`.
+
+## Train
+```
+
+```
+
 ## References
 1. Charles R. Qi, Hao Su, Kaichun Mo, Leonidas J. Guibas. PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation. CVPR 2017.
 1. "charlesq34/pointnet-autoencoder: Autoencoder for Point Clouds". Github. https://github.com/charlesq34/pointnet-autoencoder, (accessed 2018-12-5).

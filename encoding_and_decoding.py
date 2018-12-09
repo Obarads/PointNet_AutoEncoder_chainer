@@ -14,9 +14,11 @@ def encoding_data_to_hdf5(data,file_name="point_data.h5",keys=None):
         f.flush()
         f.close()
 
-def decoding_hdf5_to_data(file_name="point_data.h5",keys=None):
+def decoding_hdf5_to_data(file_name="point_data.h5"):
+    data = {}
     with h5py.File(file_name, 'r') as f:
-        data = f[keys].value
+        for key in f.keys():
+            data[key] = f[key].value
     return data
 
 def main():
@@ -40,9 +42,9 @@ def main():
         encoding_data_to_hdf5(data=d.get_data_array(), file_name=file_name,keys=class_choice)
 
     if test_d:
-        data = decoding_hdf5_to_data(file_name=file_name, keys=class_choice)
+        data = decoding_hdf5_to_data(file_name=file_name)
         import utils.show3d_balls as show3d_balls
-        show3d_balls.showpoints(data[0], ballradius=8)
+        show3d_balls.showpoints(data[class_choice][0], ballradius=8)
 
 
 if __name__ == '__main__':
