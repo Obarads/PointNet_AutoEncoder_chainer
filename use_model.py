@@ -68,7 +68,7 @@ def main():
     x,_ = d.get_example(0)
     x = chainer.Variable(np.array([x]))
     with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
-        y = model.test_calc(x)
+        y, t1, t2 = model.calc(x)
     y = y.array[0]
     point_data = []
     for n in range(len(y[0])):

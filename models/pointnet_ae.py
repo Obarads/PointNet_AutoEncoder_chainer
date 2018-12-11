@@ -72,7 +72,8 @@ class PointNetAE(chainer.Chain):
         #print(x[0][0][0][0])
         t = x
         h, t1, t2 = self.calc(x)
-        # h: (bs, ch, N), t: (bs, N)
+        #The h 4th dim is needed dist_loss.
+        # h: (bs, ch, N, 1), t: (bs, N)
         # print('h', h.shape, 't', t.shape)
         dist_loss = calc_chamfer_distance_loss(h,t)
         reporter.report({'dist_loss': dist_loss}, self)
@@ -92,7 +93,7 @@ class PointNetAE(chainer.Chain):
 
         return loss
 
-    def calc(self, x):
+    def encoder(self, x):
         #print("x:{}".format(x))
         # x: (minibatch, K, N, 1)
         # N - num_point
@@ -126,10 +127,19 @@ class PointNetAE(chainer.Chain):
         h = functions.max_pooling_2d(h, ksize=h.shape[2:])
         # h: (minibatch, K, 1, 1)
 
+        return h, t1, t2
+
+    def decoder(self, h):
         h = self.fc_block6(h)
         h = self.fc_block7(h)
         h = self.fc8(h)
 
+        return h
+
+
+    def calc(self, x):
+        h, t1, t2 = self.encoder(x)
+        h = self.decoder(h)
         h = functions.reshape(h, (x.shape[0],self.in_dim,self.output_points,1))
         return h, t1, t2
 

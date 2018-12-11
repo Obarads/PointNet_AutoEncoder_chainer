@@ -39,20 +39,8 @@ class ChainerPointCloudDatasetH5(chainer.dataset.DatasetMixin):
             self.class_number[d] = i        
 
         self.lenght = len(self.data)
+        #variable_check(self)
 
-        #self.data is input values.
-        #print(self.data)
-        #print(self.data.shape)
-        #self.label is labels.
-        #print(self.label)
-        #print(self.label.shape)
-        #self.class_number convert class name to class number.
-        #print(self.class_number)
-        #print(len(self.class_number))
-        #self.class_number convert class number to class name.
-        #print(self.class_name)
-        #print(len(self.class_name))
-    
     def __len__(self):
         return self.lenght
 
@@ -116,20 +104,7 @@ class ChainerPointCloudDatasetPCD(chainer.dataset.DatasetMixin):
 
                 self.data = pc_normalize(self.data)
                 self.lenght = len(self.data)
-                #print(self.data, self.label,self.data.shape)
-
-        #self.data is input values.
-        #print(self.data)
-        #print(self.data.shape)
-        #self.label is labels.
-        #print(self.label)
-        #print(self.label.shape)
-        #self.class_number convert class name to class number.
-        #print(self.class_number)
-        #print(len(self.class_number))
-        #self.class_number convert class number to class name.
-        #print(self.class_name)
-        #print(len(self.class_name))
+        #variable_check(self)
     
     def __len__(self):
         return self.lenght
@@ -261,20 +236,8 @@ class ChainerPointCloudDatasetDefault(chainer.dataset.DatasetMixin):
                 allocation_number += 1
         #メモリ対策?
         del self.meta
+        #variable_check(self)
 
-        #self.data is input values.
-        #print(self.data)
-        #print(self.data.shape)
-        #self.label is labels.
-        #print(self.label)
-        #print(self.label.shape)
-        #self.class_number convert class name to class number.
-        #print(self.class_number)
-        #print(len(self.class_number))
-        #self.class_number convert class number to class name.
-        #print(self.class_name)
-        #print(len(self.class_name))
-    
     def __len__(self):
         return self.lenght
 
@@ -307,6 +270,20 @@ def pc_normalize(pc):
     m = np.max(np.sqrt(np.sum(pc**2, axis=1)))
     pc = pc / m
     return pc
+
+def variable_check(self):
+    #self.data is input values.
+    print(self.data)
+    print(self.data.shape)
+    #self.label is labels.
+    print(self.label)
+    print(self.label.shape)
+    #self.class_number convert class name to class number.
+    print(self.class_number)
+    print(len(self.class_number))
+    #self.class_number convert class number to class name.
+    print(self.class_name)
+    print(len(self.class_name))
 
 if __name__ == '__main__':
 
