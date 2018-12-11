@@ -11,32 +11,34 @@ import sys
 import chainer
 import provider
 import h5py
-import encoding_and_decoding as ed
+import h5ed as ed
 from distutils.util import strtobool
 import argparse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-class ChainerDataset(chainer.dataset.DatasetMixin):
-    def __init__(self, root, num_point=1024, classification=True, class_choice=None, split='train', normalize=True, augment=False, use_h5=False):
+#segmentation is unsupported.
+class ChainerPointCloudDatasetH5(chainer.dataset.DatasetMixin):
+    def __init__(self, root=os.path.join(BASE_DIR, 'data/shapenetcore_h5/chair_train.h5'), augment=False):
         self.root = root
-        self.num_point = num_point
-        self.classification = classification
-        self.class_choice = class_choice
-        self.split = split
-        self.normalize = normalize
         self.augment = augment
-        self.use_h5 = use_h5
-        self.catfile = os.path.join(self.root, 'synsetoffset2category.txt')
-        self.cat = {}
-        self.lenght = 0
+        self.lenght = -1
         self.class_name = {}
         self.class_number = {}
+        
+        data = ed.decoding_hdf5_to_data(file_name=self.root)
+        for d,i in zip(data,range(len(data))):
+            if i == 0:
+                self.data = np.array(data[d])
+                self.label = np.full(len(data[d]),i,dtype=int)
+            else:
+                self.data = np.append(self.data, data[d], axis=0)
+                self.label = np.append(self.label, np.full(len(data[d]),i,dtype=int), axis=0)
 
-        if use_h5:
-            self.use_h5file()
-        else:
-            self.use_default()
+            self.class_name[i] = d
+            self.class_number[d] = i        
+
+        self.lenght = len(self.data)
 
         #self.data is input values.
         #print(self.data)
@@ -51,26 +53,126 @@ class ChainerDataset(chainer.dataset.DatasetMixin):
         #print(self.class_name)
         #print(len(self.class_name))
     
-    # seg label is unsupported.
-    def use_h5file(self):
-        data = ed.decoding_hdf5_to_data(file_name=self.root)
-        for d,i in zip(data,range(len(data))):
-            if i == 0:
-                self.data = np.array(data[d])
-            else:
-                self.data = np.append(self.data, data[d], axis=0)
-            if self.classification:
-                if i == 0:
-                    self.label = np.full(len(data[d]),i,dtype=int)
-                else:
-                    self.label = np.append(self.label, np.full(len(data[d]),i,dtype=int), axis=0)
-            else:
-                self.label = 0
+    def __len__(self):
+        return self.lenght
 
-            self.class_name[i] = d
-            self.class_number[d] = i        
+    def get_example(self, i):
+        if self.augment:
+            rotated_data = provider.rotate_point_cloud(
+                self.data[i:i + 1, :, :])
+            jittered_data = provider.jitter_point_cloud(rotated_data)
+            point_data = jittered_data[0]
+        else:
+            point_data = self.data[i]
+        point_data = np.transpose(
+            point_data.astype(np.float32), (1, 0))[:, :, None]
+        return point_data, self.label[i]
 
-    def use_default(self):
+    def get_data(self, i):
+        return self.data[i]
+        
+    def get_label(self, i):
+        return self.label[i]
+    
+    def get_data_array(self):
+        return self.data
+
+#segmentation is unsupported.
+class ChainerPointCloudDatasetPCD(chainer.dataset.DatasetMixin):
+    def __init__(self, root=os.path.join(BASE_DIR, 'data/clustring_leg_1'), name_pattern='o_lrf_$.pcd',augment=False, num_point=70):
+        self.root = root
+        self.name_pattern = name_pattern
+        self.augment = augment
+        self.num_point = num_point
+        self.lenght = -1
+        self.class_name = {}
+        self.class_number = {}
+        #self.label = np.array()
+        #self.data = np.array()
+
+        import open3d.open3d as open3d
+        if(os.path.isdir(self.root)):
+            name_pattern_split = self.name_pattern.split("$")
+            if(len(name_pattern_split)):
+                name_pattern_front = name_pattern_split[0]
+                name_pattern_back = name_pattern_split[1]
+                file_search_sw = 1
+                file_number = 0
+                while file_search_sw:
+                    file_path = os.path.join(self.root, name_pattern_front + str(file_number) + name_pattern_back)
+                    if(os.path.isfile(file_path)):
+                        pc = np.asarray(open3d.read_point_cloud(file_path).points)
+                        choice = np.random.choice(len(pc), self.num_point, replace=True)
+                        pc = pc[choice, :]
+                        if file_number == 0:
+                            self.data = np.array([pc])
+                            self.label = np.array([0])
+                        else:
+                            self.data = np.append(self.data, np.array([pc]),axis=0)
+                            self.label = np.append(self.label,np.array([0]),axis=0)
+                        file_number+=1
+                    else:
+                        file_search_sw = 0
+
+                self.data = pc_normalize(self.data)
+                self.lenght = len(self.data)
+                #print(self.data, self.label,self.data.shape)
+
+        #self.data is input values.
+        #print(self.data)
+        #print(self.data.shape)
+        #self.label is labels.
+        #print(self.label)
+        #print(self.label.shape)
+        #self.class_number convert class name to class number.
+        #print(self.class_number)
+        #print(len(self.class_number))
+        #self.class_number convert class number to class name.
+        #print(self.class_name)
+        #print(len(self.class_name))
+    
+    def __len__(self):
+        return self.lenght
+
+    def get_example(self, i):
+        if self.augment:
+            rotated_data = provider.rotate_point_cloud(
+                self.data[i:i + 1, :, :])
+            jittered_data = provider.jitter_point_cloud(rotated_data)
+            point_data = jittered_data[0]
+        else:
+            point_data = self.data[i]
+        point_data = np.transpose(
+            point_data.astype(np.float32), (1, 0))[:, :, None]
+        return point_data, self.label[i]
+
+    def get_data(self, i):
+        return self.data[i]
+        
+    def get_label(self, i):
+        return self.label[i]
+    
+    def get_data_array(self):
+        return self.data
+
+
+class ChainerPointCloudDatasetDefault(chainer.dataset.DatasetMixin):
+    def __init__(self, root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), 
+    num_point=1024, classification=True, class_choice=None, split='train', normalize=True, augment=False):
+        print(root)
+        self.root = root
+        self.num_point = num_point
+        self.classification = classification
+        self.class_choice = class_choice
+        self.split = split
+        self.normalize = normalize
+        self.augment = augment
+        self.catfile = os.path.join(self.root, 'synsetoffset2category.txt')
+        self.cat = {}
+        self.lenght = -1
+        self.class_name = {}
+        self.class_number = {}
+
         #allocate data directory divided by classes to self.cat 
         with open(self.catfile, 'r') as f:
             for line in f:
@@ -160,6 +262,19 @@ class ChainerDataset(chainer.dataset.DatasetMixin):
         #メモリ対策?
         del self.meta
 
+        #self.data is input values.
+        #print(self.data)
+        #print(self.data.shape)
+        #self.label is labels.
+        #print(self.label)
+        #print(self.label.shape)
+        #self.class_number convert class name to class number.
+        #print(self.class_number)
+        #print(len(self.class_number))
+        #self.class_number convert class number to class name.
+        #print(self.class_name)
+        #print(len(self.class_name))
+    
     def __len__(self):
         return self.lenght
 
@@ -197,18 +312,23 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='test_dataset')
-    parser.add_argument('--use_h5', '-c', type=strtobool, default='false')
+    parser.add_argument('--type', '-c', type=str, default='default')
     args=parser.parse_args()
 
-    use_h5 = args.use_h5
+    type = args.type
+    print(BASE_DIR)
 
-    if use_h5:
-        d = ChainerDataset(root=os.path.join(BASE_DIR, 'point_data.h5'), classification=True, class_choice=["Guitar","Car"],use_h5=use_h5)
-#        import utils.show3d_balls as show3d_balls
-       #show3d_balls.showpoints(d.get_data(0), ballradius=8)
+    if type == 'h5':
+        d = ChainerPointCloudDatasetH5()
+        import utils.show3d_balls as show3d_balls
+        show3d_balls.showpoints(d.get_data(0), ballradius=8)
+    elif type == 'pcd':
+        d = ChainerPointCloudDatasetPCD()
+        import utils.show3d_balls as show3d_balls
+        show3d_balls.showpoints(d.get_data(0), ballradius=8)
     else:
-        d = ChainerDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), classification=True, class_choice=["Chair"])
-        #d = ChainerDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), classification=True, class_choice=["Guitar","Car"])
+        d = ChainerPointCloudDatasetDefault(class_choice=["Chair"])
+        #d = ChainerPointCloudDatasetDefault(class_choice=["Guitar","Car"])
         points, label = d[0]
         #print(points, label)
         import utils.show3d_balls as show3d_balls

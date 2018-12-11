@@ -19,8 +19,6 @@ from distutils.util import strtobool
 import models.pointnet_ae as ae
 import chainer_dataset as pd
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 def main():
     parser = argparse.ArgumentParser(
         description='AutoEncoder ShapeNet')
@@ -45,6 +43,7 @@ def main():
     parser.add_argument('--middle_dim', type=int, default=64)
     parser.add_argument('--use_val', type=strtobool, default='true')
     parser.add_argument('--class_choice', type=str, default='Chair')
+    parser.add_argument('--extension', type=str, default='default')
     args = parser.parse_args()
 
     batch_size = args.batchsize
@@ -66,6 +65,7 @@ def main():
     middle_dim = args.middle_dim
     use_val = args.use_val
     class_choice = args.class_choice
+    extension = args.extension
 
     trans_lam1 = 0.001
     trans_lam2 = 0.001
@@ -83,18 +83,26 @@ def main():
     print('Train PointNet-AutoEncoder model... trans={} use_bn={} dropout={}'
           .format(trans, use_bn, dropout_ratio))
     model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
-                          trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual)
+                          trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual,output_points=num_point)
 
-    print("Dataset setting...")
+    print("Dataset setting... num_point={} extension={} use_val={}".format(num_point, extension, use_val))
     # Dataset preparation
-    train = ConcatenatedDataset(*([pd.ChainerDataset(root=os.path.join(
-        BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="train", class_choice=[class_choice])]))
-    train_iter = iterators.SerialIterator(train, batch_size)
+    if extension == 'h5':
+        train = [pd.ChainerPointCloudDatasetH5()]
+    elif extension == 'pcd':
+        train = [pd.ChainerPointCloudDatasetPCD(num_point=num_point)]
+    else:
+        train = [pd.ChainerPointCloudDatasetDefault(split="train", class_choice=[class_choice],num_point=num_point)]
+    train_iter = iterators.SerialIterator(ConcatenatedDataset(*(train)), batch_size)
+
     if use_val:
-        val = ConcatenatedDataset(*([pd.ChainerDataset(root=os.path.join(
-            BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), split="val", class_choice=[class_choice])]))
-        val_iter = iterators.SerialIterator(
-            val, batch_size, repeat=False, shuffle=False)
+        if extension == 'h5':
+            val = [pd.ChainerPointCloudDatasetH5()]
+        elif extension == 'pcd':
+            val = [pd.ChainerPointCloudDatasetPCD(num_point=num_point)]
+        else:
+            val = [pd.ChainerPointCloudDatasetDefault(split="val", class_choice=[class_choice],num_point=num_point)]
+        val_iter = iterators.SerialIterator(ConcatenatedDataset(*(val)), batch_size, repeat=False, shuffle=False)
 
     print("GPU setting...")
     # gpu setting
