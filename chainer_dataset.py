@@ -15,11 +15,24 @@ import h5ed as ed
 from distutils.util import strtobool
 import argparse
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def download_dataset():
+  BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+  sys.path.append(BASE_DIR)
+  # Download dataset for point cloud classification
+  DATA_DIR = os.path.join(BASE_DIR, 'data')
+  if not os.path.exists(DATA_DIR):
+      os.mkdir(DATA_DIR)
+  if not os.path.exists(os.path.join(DATA_DIR, 'shapenetcore_partanno_segmentation_benchmark_v0')):
+      www = 'https://shapenet.cs.stanford.edu/media/shapenetcore_partanno_segmentation_benchmark_v0.zip'
+      zipfile = os.path.basename(www)
+      os.system('wget %s; unzip %s' % (www, zipfile))
+      os.system('mv %s %s' % (zipfile[:-4], DATA_DIR))
+      os.system('rm %s' % (zipfile))
+  return DATA_DIR
 
 #segmentation is unsupported.
 class ChainerPointCloudDatasetH5(chainer.dataset.DatasetMixin):
-    def __init__(self, root=os.path.join(BASE_DIR, 'data/shapenetcore_h5/chair_train.h5'), augment=False):
+    def __init__(self, root=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/shapenetcore_h5/chair_train.h5'), augment=False):
         self.root = root
         self.augment = augment
         self.lenght = -1
@@ -67,7 +80,7 @@ class ChainerPointCloudDatasetH5(chainer.dataset.DatasetMixin):
 
 #segmentation is unsupported.
 class ChainerPointCloudDatasetPCD(chainer.dataset.DatasetMixin):
-    def __init__(self, root=os.path.join(BASE_DIR, 'data/clustring_leg_1'), name_pattern='o_lrf_$.pcd',augment=False, num_point=70):
+    def __init__(self, root=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/clustring_leg_1'), name_pattern='o_lrf_$.pcd',augment=False, num_point=70):
         self.root = root
         self.name_pattern = name_pattern
         self.augment = augment
@@ -132,9 +145,8 @@ class ChainerPointCloudDatasetPCD(chainer.dataset.DatasetMixin):
 
 
 class ChainerPointCloudDatasetDefault(chainer.dataset.DatasetMixin):
-    def __init__(self, root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'), 
+    def __init__(self, root=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/shapenetcore_partanno_segmentation_benchmark_v0'), 
     num_point=1024, classification=True, class_choice=None, split='train', normalize=True, augment=False):
-        print(root)
         self.root = root
         self.num_point = num_point
         self.classification = classification
@@ -289,11 +301,15 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='test_dataset')
-    parser.add_argument('--type', '-c', type=str, default='default')
+    parser.add_argument('--type', '-c', type=str, default=None)
+    parser.add_argument('--download', '-d', type=strtobool, default='false')
     args=parser.parse_args()
 
     type = args.type
-    print(BASE_DIR)
+    download = args.download
+    #print(os.path.dirname(os.path.abspath(__file__)))
+    if download:
+        download_dataset()
 
     if type == 'h5':
         d = ChainerPointCloudDatasetH5()
@@ -303,7 +319,7 @@ if __name__ == '__main__':
         d = ChainerPointCloudDatasetPCD()
         import utils.show3d_balls as show3d_balls
         show3d_balls.showpoints(d.get_data(0), ballradius=8)
-    else:
+    elif type == 'default':
         d = ChainerPointCloudDatasetDefault(class_choice=["Chair"])
         #d = ChainerPointCloudDatasetDefault(class_choice=["Guitar","Car"])
         points, label = d[0]

@@ -24,9 +24,21 @@ pip install -e chainerex
 ## Download Data
 ShapeNetPart dataset is available [HERE](https://shapenet.cs.stanford.edu/media/shapenetcore_partanno_segmentation_benchmark_v0.zip). Simply download the zip file and move the `shapenetcore_partanno_segmentation_benchmark_v0` folder to `data`.
 
-## Train
+Besides this, you can use command to download ShapeNetPart dataset.
+```
+python chainer_dataset.py -d true
 ```
 
+## Train
+You can simply execute train code with GPU.
+```
+python train.py -g 0
+```
+
+## Check using trained model and viewer
+You can view a ground truth data and then view an output data. In order to view next data, Please press q.
+```
+python test.py
 ```
 
 ## References

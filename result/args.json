@@ -1,13 +1,13 @@
 {
     "batchsize": 32,
     "dropout_ratio": 0,
-    "num_point": 70,
+    "num_point": 1024,
     "gpu": 0,
     "out": "result",
     "epoch": 250,
     "seed": 777,
     "protocol": 2,
-    "model_filename": "lrf_leg_3001.npz",
+    "model_filename": "model.npz",
     "resume": "",
     "trans": 1,
     "use_bn": 1,
@@ -16,7 +16,7 @@
     "out_dim": 3,
     "in_dim": 3,
     "middle_dim": 64,
-    "use_val": 0,
+    "use_val": 1,
     "class_choice": "Chair",
-    "extension": "pcd"
+    "extension": "default"
 }
