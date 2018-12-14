@@ -26,7 +26,7 @@ ShapeNetPart dataset is available [HERE](https://shapenet.cs.stanford.edu/media/
 
 Besides this, you can use command to download ShapeNetPart dataset.
 ```
-python chainer_dataset.py -d true
+python dataset.py -d true
 ```
 
 ## Train

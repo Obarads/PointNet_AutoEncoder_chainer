@@ -283,6 +283,7 @@ def main():
     parser.add_argument('--h5_name', type=str, default=None)
     parser.add_argument('--normalize', type=strtobool, default='true')
     parser.add_argument('--method', '-m', type=str, default='pcd')
+    parser.add_argument('--download', '-d', type=strtobool, default='False')
 
     args = parser.parse_args()
     path = args.path
@@ -292,9 +293,13 @@ def main():
     h5_name = args.h5_name
     method = args.method
     normalize = args.normalize
+    download = args.download
 
-    if method == 'pcd':
-        convert_pcd_to_h5(path,file_name_pattern,num_point,keys,h5_name,normalize)
+    if download:
+        download_dataset()
+    else:
+        if method == 'pcd':
+            convert_pcd_to_h5(path,file_name_pattern,num_point,keys,h5_name,normalize)
 
 if __name__ == '__main__':
     main()
