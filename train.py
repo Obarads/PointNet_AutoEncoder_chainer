@@ -17,7 +17,7 @@ from distutils.util import strtobool
 
 # self made
 import models.pointnet_ae as ae
-import chainer_dataset as pd
+import dataset
 
 def main():
     parser = argparse.ArgumentParser(
@@ -25,25 +25,20 @@ def main():
     # parser.add_argument('--conv-layers', '-c', type=int, default=4)
     parser.add_argument('--batchsize', '-b', type=int, default=32)
     parser.add_argument('--dropout_ratio', type=float, default=0)
-    parser.add_argument('--num_point', type=int, default=1024)
+    parser.add_argument('--num_point', '-n', type=int, default=1024)
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--out', '-o', type=str, default='result')
     parser.add_argument('--epoch', '-e', type=int, default=250)
-    # parser.add_argument('--unit-num', '-u', type=int, default=16)
     parser.add_argument('--seed', '-s', type=int, default=777)
-    parser.add_argument('--protocol', type=int, default=2)
-    parser.add_argument('--model_filename', type=str, default='model.npz')
-    parser.add_argument('--resume', type=str, default='')
-    parser.add_argument('--trans', type=strtobool, default='true')
+    parser.add_argument('--model_filename','-m', type=str, default='model.npz')
+    parser.add_argument('--resume','-r', type=str, default='')
+    parser.add_argument('--trans','-t', type=strtobool, default='true')
     parser.add_argument('--use_bn', type=strtobool, default='true')
-    parser.add_argument('--normalize', type=strtobool, default='false')
     parser.add_argument('--residual', type=strtobool, default='false')
-    parser.add_argument('--out_dim', type=int, default=3)
-    parser.add_argument('--in_dim', type=int, default=3)
-    parser.add_argument('--middle_dim', type=int, default=64)
-    parser.add_argument('--use_val', type=strtobool, default='true')
-    parser.add_argument('--class_choice', type=str, default='Chair')
+    parser.add_argument('--use_val','-v', type=strtobool, default='true')
+    parser.add_argument('--class_choice','-c', type=str, default='Chair')
     parser.add_argument('--extension', type=str, default='default')
+    parser.add_argument('--path','-p', type=str, default=None)
     args = parser.parse_args()
 
     batch_size = args.batchsize
@@ -53,22 +48,21 @@ def main():
     out_dir = args.out
     epoch = args.epoch
     seed = args.seed
-    protocol = args.protocol
     model_filename = args.model_filename
     resume = args.resume
     trans = args.trans
     use_bn = args.use_bn
-    normalize = args.normalize
     residual = args.residual
-    out_dim = args.out_dim
-    in_dim = args.in_dim
-    middle_dim = args.middle_dim
     use_val = args.use_val
     class_choice = args.class_choice
     extension = args.extension
+    path = args.path
 
     trans_lam1 = 0.001
     trans_lam2 = 0.001
+    out_dim = 3
+    in_dim = 3
+    middle_dim = 64
 
     try:
         os.makedirs(out_dir, exist_ok=True)
@@ -88,21 +82,24 @@ def main():
     print("Dataset setting... num_point={} extension={} use_val={}".format(num_point, extension, use_val))
     # Dataset preparation
     if extension == 'h5':
-        train = [pd.ChainerPointCloudDatasetH5()]
-    elif extension == 'pcd':
-        train = [pd.ChainerPointCloudDatasetPCD(num_point=num_point)]
+        train = dataset.convert_h5_to_array(path)
+        if use_val:
+            term = int(len(train)*0.8)
+            dataset_split = np.split(train,[term,len(train)])
+            train = dataset_split[0]
+            val = dataset_split[1]
+            val = dataset.ChainerPointCloudDataset(val,np.zeros(len(val)))
+            val_iter = iterators.SerialIterator(ConcatenatedDataset(*([val])), batch_size, repeat=False, shuffle=False)
+        train = dataset.ChainerPointCloudDataset(train,np.zeros(len(train)))
+        train_iter = iterators.SerialIterator(ConcatenatedDataset(*([train])), batch_size)
     else:
-        train = [pd.ChainerPointCloudDatasetDefault(split="train", class_choice=[class_choice],num_point=num_point)]
-    train_iter = iterators.SerialIterator(ConcatenatedDataset(*(train)), batch_size)
+        train = dataset.ChainerPointCloudDatasetDefault(split="train", class_choice=[class_choice],num_point=num_point)
+        if use_val:
+            val = dataset.ChainerPointCloudDatasetDefault(split="val", class_choice=[class_choice],num_point=num_point)
+            val_iter = iterators.SerialIterator(ConcatenatedDataset(*([val])), batch_size, repeat=False, shuffle=False)
+        train_iter = iterators.SerialIterator(ConcatenatedDataset(*([train])), batch_size)
 
-    if use_val:
-        if extension == 'h5':
-            val = [pd.ChainerPointCloudDatasetH5()]
-        elif extension == 'pcd':
-            val = [pd.ChainerPointCloudDatasetPCD(num_point=num_point)]
-        else:
-            val = [pd.ChainerPointCloudDatasetDefault(split="val", class_choice=[class_choice],num_point=num_point)]
-        val_iter = iterators.SerialIterator(ConcatenatedDataset(*(val)), batch_size, repeat=False, shuffle=False)
+
 
     print("GPU setting...")
     # gpu setting

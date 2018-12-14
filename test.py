@@ -17,7 +17,7 @@ from distutils.util import strtobool
 
 # self made
 import models.pointnet_ae as ae
-import chainer_dataset as pd
+import dataset
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -46,7 +46,6 @@ def main():
     middle_dim = args.middle_dim
     class_choice = args.class_choice
     load_file = args.load_file
-    extension = args.extension
     num_point = args.num_point
 
     trans_lam1 = 0.001
@@ -57,13 +56,7 @@ def main():
                           trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual,output_points=num_point)
     serializers.load_npz(load_file, model)
 
-
-    if extension == 'h5':
-        d = pd.ChainerPointCloudDatasetH5()
-    elif extension == 'pcd':
-        d = pd.ChainerPointCloudDatasetPCD(num_point=num_point)
-    else:
-        d = pd.ChainerPointCloudDatasetDefault(split="test", class_choice=[class_choice],num_point=num_point)
+    d = dataset.ChainerPointCloudDatasetDefault(split="test", class_choice=[class_choice],num_point=num_point)
 
     x,_ = d.get_example(0)
     x = chainer.Variable(np.array([x]))
@@ -76,7 +69,7 @@ def main():
     point_data = np.array(point_data)
     #print(point_data)
 
-    import utils.show3d_balls as show3d_balls
+    from utils import show3d_balls
     show3d_balls.showpoints(d.get_data(0), ballradius=8)
     show3d_balls.showpoints(point_data, ballradius=8)
 
