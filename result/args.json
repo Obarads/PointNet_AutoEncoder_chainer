@@ -14,5 +14,5 @@
     "use_val": 1,
     "class_choice": "Chair",
     "extension": "h5",
-    "path": "/home/cp1/CodeBox/chainer-pointnet-autoencoder/data/h5/torso_1.h5"
+    "path": "data/h5/leg_1_60.h5"
 }

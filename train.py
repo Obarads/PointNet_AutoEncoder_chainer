@@ -83,7 +83,10 @@ def main():
     # Dataset preparation
     if extension == 'h5':
         train = dataset.convert_h5_to_array(path)
+        #train = dataset.convert_pcd_to_array(path,file_name_pattern="o_lrf_$.pcd",num_point=num_point)
         if use_val:
+            choice = np.random.choice(len(train),len(train),replace=False)
+            train = train[choice, :, :]
             term = int(len(train)*0.8)
             dataset_split = np.split(train,[term,len(train)])
             train = dataset_split[0]

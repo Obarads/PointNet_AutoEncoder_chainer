@@ -252,10 +252,12 @@ def convert_pcd_to_array(path=None,file_name_pattern=None,num_point=None, normal
             name_pattern_back = name_pattern_split[1]
             file_search_sw = True
             file_number = 0
+            ana_sum = 0
             while file_search_sw:
                 file_path = os.path.join(path, name_pattern_front + str(file_number) + name_pattern_back)
                 if(os.path.isfile(file_path)):
                     pc = np.asarray(open3d.read_point_cloud(file_path).points)
+                    ana_sum += len(pc)
                     choice = np.random.choice(len(pc), int(num_point), replace=True)
                     pc = pc[choice, :]
                     if normalize:
@@ -267,7 +269,8 @@ def convert_pcd_to_array(path=None,file_name_pattern=None,num_point=None, normal
                     file_number+=1
                 else:
                     file_search_sw = False
-    
+
+    print(ana_sum/len(data))
     return data
 
 def convert_pcd_to_h5(path=None,file_name_pattern=None,num_point=None,keys=None, h5_name=None, normalize=None):

@@ -22,8 +22,79 @@ import dataset
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def HandCrafted3DFeature(data):    
-    return 0
+"""
+# First, convert pcd datas to h5 files.
+#torso
+python dataset.py -p data/lrf_data/verified_0_torso_1/ -r o_lrf_$.pcd -n 50 -k torso --h5_name torso_1.h5
+python dataset.py -p data/lrf_data/verified_0_torso_2/ -r o_lrf_$.pcd -n 50 -k torso --h5_name torso_2.h5
+#leg
+python dataset.py -p data/lrf_data/verified_0_leg_1/ -r o_lrf_$.pcd -n 50 -k torso --h5_name leg_1.h5
+python dataset.py -p data/lrf_data/verified_0_leg_2/ -r o_lrf_$.pcd -n 50 -k torso --h5_name leg_2.h5
+#hip
+python dataset.py -p data/lrf_data/verified_0_hip_1/ -r o_lrf_$.pcd -n 50 -k torso --h5_name hip_1.h5
+python dataset.py -p data/lrf_data/verified_0_hip_2/ -r o_lrf_$.pcd -n 50 -k torso --h5_name hip_2.h5
+
+# Second, 
+"""
+
+
+def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/verified_0_leg_1'),file_name_pattern='o_lrf_$.pcd'):
+
+    import open3d.open3d as open3d
+    if(os.path.isdir(path)):
+        name_pattern_split = file_name_pattern.split("$")
+        if(len(name_pattern_split)==2):
+            name_pattern_front = name_pattern_split[0]
+            name_pattern_back = name_pattern_split[1]
+            file_search_sw = True
+            file_number = 0
+            #N, ch  ch=width, grith, depth
+            results = []
+            while file_search_sw:
+                file_path = os.path.join(path, name_pattern_front + str(file_number) + name_pattern_back)
+                if(os.path.isfile(file_path)):
+                    pc = np.asarray(open3d.read_point_cloud(file_path).points)
+                    p1 = pc[0]
+                    pm = pc[len(pc)-1]
+
+                    #width
+                    width = np.sqrt((p1[0]-pm[0])**2+(p1[1]-pm[1])**2)
+
+                    #grith
+                    ago = 0
+                    grith = 0
+                    for dp,i in zip(pc,range(len(pc))):
+                        if i == 0:
+                            grith = 0
+                            ago = dp
+                        else:
+                            grith += np.sqrt((dp[0]-ago[0])**2+(dp[1]-ago[1])**2)
+                            ago = dp
+
+                    #depth
+                    #x,y
+                    L1 = np.zeros(2)
+                    depth_max = 0
+                    L1[0] = p1[0] - pm[0]
+                    L1[1] = p1[1] - pm[1]
+                    L1TL1 = L1[0]**2 + L1[1]**2
+                    for dp,i in zip(pc,range(len(pc))):
+                        L2 = np.zeros(2)
+                        L2[0] = dp[0] - p1[0]
+                        L2[1] = dp[1] - p1[1]
+                        L2TL2 = L2[0]**2 + L2[1]**2
+                        L1TL2 = L1[0]*L2[0] + L1[1]*L2[1]
+                        depth = (L2TL2 * L1TL1 - L1TL2**2)/L1TL1
+                        if depth > depth_max:
+                            depth_max = depth
+                    results.append([width, grith, depth_max])
+                    file_number+=1
+                else:
+                    file_search_sw = False
+
+    results = np.array(results)
+
+    return results
 
 def main():
     parser = argparse.ArgumentParser(
@@ -100,18 +171,13 @@ def main():
 
     #Hand-crafted 3D Feature
     import csv
-    svm_train = []
-    svm_test = []
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/lrf_data/verified_0_'+parts+'_1.csv'), 'r') as f:
-        reader = csv.reader(f)
-        for r in reader:
-            svm_train.append([r[0],r[1],r[2]])
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/verified_0_'+parts+'_2.csv'), 'r') as f:
-        reader = csv.reader(f)
-        for r in reader:
-            svm_test.append([r[0],r[1],r[2]])
+
+    svm_train = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/verified_0_'+parts+'_1'))
+    svm_test = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/verified_0_'+parts+'_2'))
+
     clf_two = svm.OneClassSVM(nu=0.1,kernel='rbf',gamma="auto")
     clf_two.fit(svm_train)
+
     result_2 = clf_two.predict(svm_test)
     count_2 = 0
     for r in result_2:
