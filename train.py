@@ -81,9 +81,11 @@ def main():
 
     print("Dataset setting... num_point={} extension={} use_val={}".format(num_point, extension, use_val))
     # Dataset preparation
-    if extension == 'h5':
-        train = dataset.convert_h5_to_array(path)
-        #train = dataset.convert_pcd_to_array(path,file_name_pattern="o_lrf_$.pcd",num_point=num_point)
+    if extension != 'default':
+        if extension == 'h5':
+            train = dataset.convert_h5_to_array(path)
+        elif extension == 'pcd':
+            train = dataset.convert_pcd_to_array(path,file_name_pattern="o_lrf_$.pcd",num_point=num_point)
         if use_val:
             choice = np.random.choice(len(train),len(train),replace=False)
             train = train[choice, :, :]
