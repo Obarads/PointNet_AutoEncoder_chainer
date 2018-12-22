@@ -151,7 +151,7 @@ def main():
     t_test_output = np.reshape(t_test_output,[dn,df])
     ae_result_t = clf_one.predict(t_test_output)
     t_count = 0
-    for r in ae_result_t:
+    for (i,r) in enumerate(ae_result_t):
         if r == 1:
             t_count+=1
     ae_acc_t = t_count/len(ae_result_t)
