@@ -67,8 +67,8 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
                     #x,y
                     L1 = np.zeros(2)
                     depth_max = 0
-                    L1[0] = p1[0] - pm[0]
-                    L1[1] = p1[1] - pm[1]
+                    L1[0] = pm[0] - p1[0]
+                    L1[1] = pm[1] - p1[1]
                     L1TL1 = L1[0]**2 + L1[1]**2
                     for dp,i in zip(pc,range(len(pc))):
                         L2 = np.zeros(2)
