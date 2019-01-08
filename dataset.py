@@ -270,7 +270,8 @@ def convert_pcd_to_array(path=None,file_name_pattern=None,num_point=None, normal
                 else:
                     file_search_sw = False
 
-    print(ana_sum/len(data))
+    print("path:{}".format(path))
+    print("number_of_points_ave:{} ".format(ana_sum/len(data)))
     return data
 
 def convert_pcd_to_h5(path=None,file_name_pattern=None,num_point=None,keys=None, h5_name=None, normalize=None):

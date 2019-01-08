@@ -110,7 +110,7 @@ def main():
     in_dim = 3
     middle_dim = 64
     dropout_ratio = 0
-    use_bn = False
+    use_bn = True
 
     #Learned 3D Feature
     print('Load PointNet-AutoEncoder model... load_file={}'.format(load_file))
