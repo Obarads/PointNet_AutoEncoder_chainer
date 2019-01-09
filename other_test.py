@@ -30,7 +30,7 @@ second, execute other_test.py
 python other_test.py --num_point=70 -lf result/model.npz -p torso
 """
 
-def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/verified_0_leg_1'),file_name_pattern='o_lrf_$.pcd'):
+def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/torso_train'),file_name_pattern='o_lrf_$.pcd',method=1):
 
     import open3d.open3d as open3d
     if(os.path.isdir(path)):
@@ -46,8 +46,8 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
                 file_path = os.path.join(path, name_pattern_front + str(file_number) + name_pattern_back)
                 if(os.path.isfile(file_path)):
                     pc = np.asarray(open3d.read_point_cloud(file_path).points)
-                    p1 = pc[0]
-                    pm = pc[len(pc)-1]
+                    p1 = np.array([pc[0][0],pc[0][1]])
+                    pm = np.array([pc[len(pc)-1][0],pc[len(pc)-1][1]])
 
                     #width
                     width = np.sqrt((p1[0]-pm[0])**2+(p1[1]-pm[1])**2)
@@ -67,6 +67,7 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
                     #x,y
                     L1 = np.zeros(2)
                     depth_max = 0
+                    center = np.zeros(2)
                     L1[0] = pm[0] - p1[0]
                     L1[1] = pm[1] - p1[1]
                     L1TL1 = L1[0]**2 + L1[1]**2
@@ -79,7 +80,19 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
                         depth = (L2TL2 * L1TL1 - L1TL2**2)/L1TL1
                         if depth > depth_max:
                             depth_max = depth
-                    results.append([width, grith, depth_max])
+                            center[0] = dp[0]
+                            center[1] = dp[1]
+                    if method == 2:
+                        v1 = p1 - center
+                        v2 = pm - center
+                        cos = (v1[0]*v2[0]+v1[1]*v2[1])/(np.sqrt(v1[0]**2+v1[1]**2)*np.sqrt(v2[0]**2+v2[1]**2))
+                        angle = np.arccos(cos)
+                        w_g = width/grith
+                        results.append([width, grith, depth_max, w_g, angle])
+                        if "torso_train" in path and depth >= 0.07:
+                            print([width, grith, depth_max, w_g, angle])
+                    else:
+                        results.append([width, grith, depth_max])
                     file_number+=1
                 else:
                     file_search_sw = False
@@ -96,6 +109,7 @@ def main():
     parser.add_argument('--load_file', '-lf', type=str, default='result/model.npz')
     parser.add_argument('--num_point', '-np', type=int, default=50)
     parser.add_argument('--parts', '-p',type=str, default='hip')
+    parser.add_argument('--svm_method', '-sm',type=int, default=1)
     args = parser.parse_args()
 
     trans = args.trans
@@ -103,6 +117,7 @@ def main():
     load_file = args.load_file
     num_point = args.num_point
     parts = args.parts
+    svm_method = args.svm_method
 
     trans_lam1 = 0.001
     trans_lam2 = 0.001
@@ -117,7 +132,7 @@ def main():
     model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
                           trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual,output_points=num_point)
     serializers.load_npz(load_file, model)
-
+    """
     ae_train = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_train'),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
     ae_train = dataset.ChainerPointCloudDataset(ae_train,np.zeros(len(ae_train)))
     ae_test_t = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_test'),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
@@ -179,13 +194,15 @@ def main():
     print("ae_acc_t:{}% ".format(ae_acc_t*100))
     print("ae_acc_f:{}% ".format(ae_acc_f*100))
     print("ae_acc_total:{}% ".format(ae_acc_total*100))
+    """
 
     #Hand-crafted 3D Feature
     import csv
 
-    svm_train = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_train'))
-    svm_test_t = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_test'))
-    svm_test_f = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts))
+    svm_train = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_train'),method=svm_method)
+    print(svm_train)
+    svm_test_t = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_test'),method=svm_method)
+    svm_test_f = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts),method=svm_method)
 
     clf_two = svm.OneClassSVM(nu=0.1,kernel='rbf',gamma="auto")
     clf_two.fit(svm_train)
