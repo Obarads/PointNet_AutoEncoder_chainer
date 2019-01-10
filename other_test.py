@@ -30,7 +30,7 @@ second, execute other_test.py
 python other_test.py --num_point=70 -lf result/model.npz -p torso
 """
 
-def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/torso_train'),file_name_pattern='o_lrf_$.pcd',method=1):
+def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/torso_train'),file_name_pattern='o_lrf_$.pcd',method=1, standardization=True, res_mean=None, res_std=None):
 
     import open3d.open3d as open3d
     if(os.path.isdir(path)):
@@ -89,8 +89,12 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
                         angle = np.arccos(cos)
                         w_g = width/grith
                         results.append([width, grith, depth_max, w_g, angle])
+                        #results.append([width, grith, depth_max, angle])
+                        #results.append([width, w_g, angle])
+                        """
                         if "torso_train" in path and depth >= 0.07:
                             print([width, grith, depth_max, w_g, angle])
+                        """
                     else:
                         results.append([width, grith, depth_max])
                     file_number+=1
@@ -99,7 +103,18 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
 
     results = np.array(results)
 
-    return results
+    if standardization:
+        if res_mean is None or res_std is None:
+            res_mean = results.mean(axis=0,keepdims=True)
+            res_std = np.std(a=results, axis=0, keepdims=True)
+            if "torso_train" in path:
+                print('mean:{}'.format(res_mean))
+                print('std:{}'.format(res_std))
+            results = (results - res_mean)/res_std
+        else:
+            results = (results - res_mean)/res_std
+
+    return results,res_mean,res_std
 
 def main():
     parser = argparse.ArgumentParser(
@@ -199,10 +214,9 @@ def main():
     #Hand-crafted 3D Feature
     import csv
 
-    svm_train = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_train'),method=svm_method)
-    print(svm_train)
-    svm_test_t = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_test'),method=svm_method)
-    svm_test_f = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts),method=svm_method)
+    svm_train, res_mean, res_std = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_train'),method=svm_method)
+    svm_test_t, _, _ = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_test'),method=svm_method, res_mean=res_mean, res_std=res_std)
+    svm_test_f, _, _ = HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts),method=svm_method, res_mean=res_mean, res_std=res_std)
 
     clf_two = svm.OneClassSVM(nu=0.1,kernel='rbf',gamma="auto")
     clf_two.fit(svm_train)
