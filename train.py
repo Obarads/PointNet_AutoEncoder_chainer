@@ -29,7 +29,6 @@ def main():
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--out', '-o', type=str, default='result')
     parser.add_argument('--epoch', '-e', type=int, default=250)
-    parser.add_argument('--seed', '-s', type=int, default=777)
     parser.add_argument('--model_filename','-m', type=str, default='model.npz')
     parser.add_argument('--resume','-r', type=str, default='')
     parser.add_argument('--trans','-t', type=strtobool, default='true')
@@ -37,8 +36,6 @@ def main():
     parser.add_argument('--residual', type=strtobool, default='false')
     parser.add_argument('--use_val','-v', type=strtobool, default='true')
     parser.add_argument('--class_choice','-c', type=str, default='Chair')
-    parser.add_argument('--extension', type=str, default='default')
-    parser.add_argument('--path','-p', type=str, default=None)
     args = parser.parse_args()
 
     batch_size = args.batchsize
@@ -47,7 +44,6 @@ def main():
     device = args.gpu
     out_dir = args.out
     epoch = args.epoch
-    seed = args.seed
     model_filename = args.model_filename
     resume = args.resume
     trans = args.trans
@@ -55,8 +51,6 @@ def main():
     residual = args.residual
     use_val = args.use_val
     class_choice = args.class_choice
-    extension = args.extension
-    path = args.path
 
     trans_lam1 = 0.001
     trans_lam2 = 0.001
@@ -79,32 +73,14 @@ def main():
     model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
                           trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual,output_points=num_point)
 
-    print("Dataset setting... num_point={} extension={} use_val={}".format(num_point, extension, use_val))
+    print("Dataset setting... num_point={} use_val={}".format(num_point, use_val))
     # Dataset preparation
-    if extension != 'default':
-        if extension == 'h5':
-            train = dataset.convert_h5_to_array(path)
-        elif extension == 'pcd':
-            train = dataset.convert_pcd_to_array(path,file_name_pattern="o_lrf_$.pcd",num_point=num_point)
-        if use_val:
-            choice = np.random.choice(len(train),len(train),replace=False)
-            train = train[choice, :, :]
-            term = int(len(train)*0.8)
-            dataset_split = np.split(train,[term,len(train)])
-            train = dataset_split[0]
-            val = dataset_split[1]
-            val = dataset.ChainerPointCloudDataset(val,np.zeros(len(val)))
-            val_iter = iterators.SerialIterator(ConcatenatedDataset(*([val])), batch_size, repeat=False, shuffle=False)
-        train = dataset.ChainerPointCloudDataset(train,np.zeros(len(train)))
-        train_iter = iterators.SerialIterator(ConcatenatedDataset(*([train])), batch_size)
-    else:
-        train = dataset.ChainerPointCloudDatasetDefault(split="train", class_choice=[class_choice],num_point=num_point)
-        if use_val:
-            val = dataset.ChainerPointCloudDatasetDefault(split="val", class_choice=[class_choice],num_point=num_point)
-            val_iter = iterators.SerialIterator(ConcatenatedDataset(*([val])), batch_size, repeat=False, shuffle=False)
-        train_iter = iterators.SerialIterator(ConcatenatedDataset(*([train])), batch_size)
 
-
+    train = dataset.ChainerPointCloudDatasetDefault(split="train", class_choice=[class_choice],num_point=num_point)
+    if use_val:
+        val = dataset.ChainerPointCloudDatasetDefault(split="val", class_choice=[class_choice],num_point=num_point)
+        val_iter = iterators.SerialIterator(ConcatenatedDataset(*([val])), batch_size, repeat=False, shuffle=False)
+    train_iter = iterators.SerialIterator(ConcatenatedDataset(*([train])), batch_size)
 
     print("GPU setting...")
     # gpu setting
