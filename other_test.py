@@ -116,6 +116,15 @@ def HandCrafted3DFeature(path=os.path.join(os.path.dirname(os.path.abspath(__fil
 
     return results,res_mean,res_std
 
+def calc_standardization(results,res_mean=None, res_std=None):
+    if res_mean is None or res_std is None:
+        res_mean = results.mean(axis=0,keepdims=True)
+        res_std = np.std(a=results, axis=0, keepdims=True)
+        results = (results - res_mean)/res_std
+    else:
+        results = (results - res_mean)/res_std
+    return results,res_mean,res_std
+
 def main():
     parser = argparse.ArgumentParser(
         description='AutoEncoder ShapeNet')
@@ -125,6 +134,7 @@ def main():
     parser.add_argument('--num_point', '-np', type=int, default=50)
     parser.add_argument('--parts', '-p',type=str, default='hip')
     parser.add_argument('--svm_method', '-sm',type=int, default=1)
+    parser.add_argument('--ae_method', '-am',type=int, default=1)
     args = parser.parse_args()
 
     trans = args.trans
@@ -133,6 +143,7 @@ def main():
     num_point = args.num_point
     parts = args.parts
     svm_method = args.svm_method
+    ae_method = args.ae_method
 
     trans_lam1 = 0.001
     trans_lam2 = 0.001
@@ -147,69 +158,101 @@ def main():
     model = ae.PointNetAE(out_dim=out_dim, in_dim=in_dim, middle_dim=middle_dim, dropout_ratio=dropout_ratio, use_bn=use_bn,
                           trans=trans, trans_lam1=trans_lam1, trans_lam2=trans_lam2, residual=residual,output_points=num_point)
     serializers.load_npz(load_file, model)
-    """
+    
     ae_train = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_train'),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
     ae_train = dataset.ChainerPointCloudDataset(ae_train,np.zeros(len(ae_train)))
     ae_test_t = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/'+parts+'_test'),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
     ae_test_t = dataset.ChainerPointCloudDataset(ae_test_t,np.zeros(len(ae_test_t)))
 
-    #svm train
-    output = []
-    with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
-        for i in range(len(ae_train)):
-            x,_ = ae_train.get_example(i)
-            x = chainer.Variable(np.array([x]))
-            h,_,_=model.encoder(x)
-            output.append(h.array)
-        output = np.array(output)
-    #print(output.shape)
-    dn,_,df,_,_= output.shape
-    output = np.reshape(output,[dn,df])
-    clf_one = svm.OneClassSVM(nu=0.1,kernel='rbf',gamma="auto")
-    clf_one.fit(output)
+    if ae_method == 1:
+        #svm train
+        output = []
+        with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
+            for i in range(len(ae_train)):
+                x,_ = ae_train.get_example(i)
+                x = chainer.Variable(np.array([x]))
+                h,_,_=model.encoder(x)
+                output.append(h.array)
+            output = np.array(output)
+        #print(output.shape)
+        dn,_,df,_,_= output.shape
+        output = np.reshape(output,[dn,df])
+        clf_one = svm.OneClassSVM(nu=0.1,kernel='rbf',gamma="auto")
+        clf_one.fit(output)
 
-    #test -true
-    t_test_output = []
-    with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
-        for i in range(len(ae_test_t)):
-            x,_ = ae_test_t.get_example(i)
-            x = chainer.Variable(np.array([x]))
-            h,_,_=model.encoder(x)
-            t_test_output.append(h.array)
-        t_test_output = np.array(t_test_output)
-    dn,_,df,_,_= t_test_output.shape
-    t_test_output = np.reshape(t_test_output,[dn,df])
-    ae_result_t = clf_one.predict(t_test_output)
-    t_count = 0
-    for (i,r) in enumerate(ae_result_t):
-        if r == 1:
-            t_count+=1
-    ae_acc_t = t_count/len(ae_result_t)
+        #test -true
+        t_test_output = []
+        with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
+            for i in range(len(ae_test_t)):
+                x,_ = ae_test_t.get_example(i)
+                x = chainer.Variable(np.array([x]))
+                h,_,_=model.encoder(x)
+                t_test_output.append(h.array)
+            t_test_output = np.array(t_test_output)
+        dn,_,df,_,_= t_test_output.shape
+        t_test_output = np.reshape(t_test_output,[dn,df])
+        ae_result_t = clf_one.predict(t_test_output)
+        t_count = 0
+        for r in ae_result_t:
+            if r == 1:
+                t_count+=1
+        ae_acc_t = t_count/len(ae_result_t)
 
-    #test -false
-    f_test_output = []
-    ae_test_f = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
-    ae_test_f = dataset.ChainerPointCloudDataset(ae_test_f,np.zeros(len(ae_test_f)))
-    with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
-        for i in range(len(ae_test_f)):
-            x,_ = ae_test_f.get_example(i)
-            x = chainer.Variable(np.array([x]))
-            h,_,_=model.encoder(x)
-            f_test_output.append(h.array)
-        f_test_output = np.array(f_test_output)
-    dn,_,df,_,_= f_test_output.shape
-    f_test_output = np.reshape(f_test_output,[dn,df])
-    ae_result_f = clf_one.predict(f_test_output)
-    f_count = 0
-    for r in ae_result_f:
-        if r == -1:
-            f_count+=1
-    ae_acc_f = f_count/len(ae_result_f)
-    ae_acc_total = (f_count+t_count)/(len(ae_result_f)+len(ae_result_t))
+        #test -false
+        f_test_output = []
+        ae_test_f = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
+        ae_test_f = dataset.ChainerPointCloudDataset(ae_test_f,np.zeros(len(ae_test_f)))
+        with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
+            for i in range(len(ae_test_f)):
+                x,_ = ae_test_f.get_example(i)
+                x = chainer.Variable(np.array([x]))
+                h,_,_=model.encoder(x)
+                f_test_output.append(h.array)
+            f_test_output = np.array(f_test_output)
+        dn,_,df,_,_= f_test_output.shape
+        f_test_output = np.reshape(f_test_output,[dn,df])
+        ae_result_f = clf_one.predict(f_test_output)
+        f_count = 0
+        for r in ae_result_f:
+            if r == -1:
+                f_count+=1
+        ae_acc_f = f_count/len(ae_result_f)
+        ae_acc_total = (f_count+t_count)/(len(ae_result_f)+len(ae_result_t))
+    else:
+        ae_result_t = []
+        with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
+            for i in range(len(ae_test_t)):
+                x,_ = ae_test_t.get_example(i)
+                x = chainer.Variable(np.array([x]))
+                ae_result_t.append(model.anomaly_score(x))
+            ae_result_t = np.array(ae_result_t)
+        t_count = 0
+        for r in ae_result_t:
+            if r == 1:
+                t_count+=1
+        ae_acc_t = t_count/len(ae_result_t)
+
+        #test -false
+        ae_result_f = []
+        ae_test_f = dataset.convert_pcd_to_array(path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'data/lrf_data/not_'+parts),file_name_pattern='o_lrf_$.pcd',num_point=num_point)
+        ae_test_f = dataset.ChainerPointCloudDataset(ae_test_f,np.zeros(len(ae_test_f)))
+        with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
+            for i in range(len(ae_test_f)):
+                x,_ = ae_test_f.get_example(i)
+                x = chainer.Variable(np.array([x]))
+                ae_result_f.append(model.anomaly_score(x))
+            ae_result_f = np.array(ae_result_f)
+        f_count = 0
+        for r in ae_result_f:
+            if r == -1:
+                f_count+=1
+        ae_acc_f = f_count/len(ae_result_f)
+        ae_acc_total = (f_count+t_count)/(len(ae_result_f)+len(ae_result_t))
+
     print("ae_acc_t:{}% ".format(ae_acc_t*100))
     print("ae_acc_f:{}% ".format(ae_acc_f*100))
     print("ae_acc_total:{}% ".format(ae_acc_total*100))
-    """
+    
 
     #Hand-crafted 3D Feature
     import csv

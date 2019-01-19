@@ -3,6 +3,7 @@ from chainer import functions
 from chainer import backends
 from chainer import links
 from chainer import reporter
+import numpy as np
 
 from .conv_block import ConvBlock
 from .linear_block import LinearBlock
@@ -28,6 +29,7 @@ def calc_chamfer_distance_loss(pred, label):
     dists_forward,_,dists_backward,_ = dl.chamfer_distance(pred,label)
     loss = functions.mean(dists_forward+dists_backward)
     return loss*100
+
 
 class PointNetAE(chainer.Chain):
 
@@ -143,6 +145,12 @@ class PointNetAE(chainer.Chain):
         h = functions.reshape(h, (x.shape[0],self.in_dim,self.output_points,1))
         return h, t1, t2
 
-    def test_calc(self, x):
-        h, _, _ = self.calc(x)
-        return h
+    def anomaly_score(self, x):
+        t = x
+        h,_,_ = self.calc(x)
+        ano_score = calc_chamfer_distance_loss(h,t).array
+        if ano_score <= 0.35:
+            res = 1
+        else:
+            res = -1
+        return res
