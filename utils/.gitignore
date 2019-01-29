@@ -1,0 +1,5 @@
+/.vscode/
+*.h5
+/result/
+/__pycache__/
+/models/__pycache__/
