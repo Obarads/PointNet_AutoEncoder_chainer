@@ -1,4 +1,4 @@
-# chainer-pointnet-autoencoder
+# PointNet AutoEncoder using chainer
 ## Introduce
 AutoEncoder using PointNet and chainer. PointNet-AutoEnocoder(TensorFlow) which PointNet author created is [here](https://github.com/charlesq34/pointnet-autoencoder).
 
